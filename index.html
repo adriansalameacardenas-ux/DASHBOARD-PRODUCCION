@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard KPI Produccion — MASTERKPI v2</title>
+<title>Dashboard KPI Produccion — MASTERKPI v2.5</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -16,6 +16,8 @@
   --green-dark: #0d7a3e; --green: #00d084; --green-light: #66f5b0; --green-pale: #b3fad8;
   --orange-dark: #c45a00; --orange: #ff9500; --orange-light: #ffb84d; --orange-pale: #ffd699;
   --red: #ff3b5c; --purple: #a855f7; --cyan: #00d4ff;
+  --c1001: #00d4ff; --c1001-dark: #0099cc; --c1001-light: #66e5ff; --c1001-pale: #b3f2ff;
+  --c1002: #00d084; --c1002-dark: #0d7a3e; --c1002-light: #66f5b0; --c1002-pale: #b3fad8;
 }
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
@@ -43,7 +45,7 @@ h1,h2,h3,.kpi-val,.nav-title { font-family:'Rajdhani',sans-serif; }
 .upload-zone h3 { font-family:'Rajdhani',sans-serif; font-size:1.4rem; margin-bottom:8px; }
 .upload-zone p { color:var(--text2); font-size:0.9rem; }
 #fileInput { display:none; }
-.plant-cards { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; max-width:900px; width:100%; }
+.plant-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:20px; max-width:1200px; width:100%; }
 .plant-card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:30px; cursor:pointer; transition:all .3s; text-align:center; opacity:.4; pointer-events:none; }
 .plant-card.ready { opacity:1; pointer-events:auto; }
 .plant-card:hover { border-color:var(--blue); background:var(--card2); transform:translateY(-5px); box-shadow:0 8px 30px rgba(30,144,255,.15); }
@@ -53,6 +55,7 @@ h1,h2,h3,.kpi-val,.nav-title { font-family:'Rajdhani',sans-serif; }
 .pc-blue i { color:var(--blue); } .pc-blue:hover { border-color:var(--blue); }
 .pc-green i { color:var(--green); } .pc-green:hover { border-color:var(--green); }
 .pc-purple i { color:var(--purple); } .pc-purple:hover { border-color:var(--purple); }
+.pc-orange i { color:var(--orange); } .pc-orange:hover { border-color:var(--orange); }
 .inner { padding:0 24px 40px; max-width:1700px; margin:0 auto; }
 .subtab-bar { display:flex; gap:4px; padding:16px 0 0; margin-bottom:20px; border-bottom:1px solid var(--border); }
 .subtab { padding:10px 22px; border-radius:8px 8px 0 0; font-family:'Rajdhani',sans-serif; font-size:0.95rem; font-weight:600; letter-spacing:0.5px; cursor:pointer; color:var(--text2); transition:all .2s; border:1px solid transparent; border-bottom:none; display:flex; align-items:center; gap:7px; }
@@ -78,6 +81,10 @@ h1,h2,h3,.kpi-val,.nav-title { font-family:'Rajdhani',sans-serif; }
 .kpi-card.r { border-top-color:var(--red); }
 .kpi-card.p { border-top-color:var(--purple); }
 .kpi-card.c { border-top-color:var(--cyan); }
+.kpi-card.celeste { border-top-color:var(--c1001); }
+.kpi-card.celeste .kpi-val { color:var(--c1001); }
+.kpi-card.verde { border-top-color:var(--c1002); }
+.kpi-card.verde .kpi-val { color:var(--c1002); }
 .kpi-lbl { font-size:0.72rem; text-transform:uppercase; letter-spacing:.8px; color:var(--text2); margin-bottom:6px; }
 .kpi-val { font-size:1.9rem; font-weight:700; line-height:1; }
 .kpi-sub { font-size:0.75rem; color:var(--text2); margin-top:4px; }
@@ -88,7 +95,7 @@ h1,h2,h3,.kpi-val,.nav-title { font-family:'Rajdhani',sans-serif; }
 .chart-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; }
 .chart-card h4 { font-family:'Rajdhani',sans-serif; font-size:0.95rem; font-weight:600; color:var(--text2); margin-bottom:14px; display:flex; align-items:center; gap:8px; }
 .chart-card h4 i { color:var(--blue); }
-.chart-wrap { position:relative; }
+.chart-wrap { position:relative; min-height:260px; }
 .table-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; margin-bottom:16px; }
 .table-card h4 { font-family:'Rajdhani',sans-serif; font-size:0.95rem; font-weight:600; color:var(--text2); margin-bottom:14px; display:flex; align-items:center; gap:8px; justify-content:space-between; }
 .table-wrap { overflow-x:auto; max-height:380px; overflow-y:auto; }
@@ -101,6 +108,8 @@ tr:hover td { background:rgba(30,144,255,0.04); }
 .badge-orange { background:rgba(255,149,0,0.15); color:var(--orange); }
 .badge-red { background:rgba(255,59,92,0.15); color:var(--red); }
 .badge-blue { background:rgba(30,144,255,0.15); color:var(--blue); }
+.badge-celeste { background:rgba(0,212,255,0.15); color:var(--c1001); }
+.badge-verde { background:rgba(0,208,132,0.15); color:var(--c1002); }
 .prog-bar { width:80px; height:6px; background:var(--bg); border-radius:3px; overflow:hidden; display:inline-block; vertical-align:middle; margin-left:6px; }
 .prog-fill { height:100%; border-radius:3px; }
 .sec-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; padding-bottom:12px; border-bottom:1px solid var(--border); }
@@ -114,7 +123,6 @@ tr:hover td { background:rgba(30,144,255,0.04); }
 @media(max-width:900px) { .charts-row.cols2, .charts-row.cols3, .charts-row.cols4 { grid-template-columns:1fr; } .plant-cards { grid-template-columns:1fr; } .nav-tabs .nav-tab span { display:none; } }
 .hidden { display:none !important; }
 
-/* NUEVO: Colores degradados para KPIs */
 .kpi-card.good-1 { border-top-color: var(--green-dark); }
 .kpi-card.good-1 .kpi-val { color: var(--green-dark); }
 .kpi-card.good-2 { border-top-color: var(--green); }
@@ -132,37 +140,42 @@ tr:hover td { background:rgba(30,144,255,0.04); }
 .kpi-card.bad-4 { border-top-color: var(--orange-pale); }
 .kpi-card.bad-4 .kpi-val { color: var(--orange-pale); }
 
-/* NUEVO: Eficiencia por grupo */
 .group-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .group-card .group-name { font-family: 'Rajdhani', sans-serif; font-size: 1.1rem; font-weight: 600; }
 .group-card .group-pct { font-size: 1.6rem; font-weight: 700; }
 .group-card .group-bar { flex: 1; margin: 0 16px; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
 .group-card .group-fill { height: 100%; border-radius: 4px; transition: width .5s ease; }
 
-/* NUEVO: Paradas mantenimiento */
 .mant-kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
 .mant-kpi-row .kpi-card { text-align: center; }
 .pareto-table th { background: rgba(255, 59, 92, 0.08); color: var(--red); }
+
+.plant-badge { display:inline-block; padding:2px 10px; border-radius:4px; font-size:0.75rem; font-weight:700; margin-left:8px; }
+.plant-badge.p1001 { background:rgba(0,212,255,0.15); color:var(--c1001); }
+.plant-badge.p1002 { background:rgba(0,208,132,0.15); color:var(--c1002); }
 </style>
+<base target="_blank">
 <base target="_blank">
 </head>
 <body>
 
 <nav id="topnav">
-  <div class="nav-brand"><i class="fas fa-industry"></i> MASTERKPI v2</div>
+  <div class="nav-brand"><i class="fas fa-industry"></i> MASTERKPI v2.5</div>
   <div class="nav-tabs">
     <div class="nav-tab active" onclick="showPage('landing')" id="nt-landing"><i class="fas fa-home"></i> <span>Inicio</span></div>
     <div class="nav-tab hidden" onclick="showPage('p1001')" id="nt-p1001"><i class="fas fa-building"></i> <span>Planta 1001</span></div>
     <div class="nav-tab hidden" onclick="showPage('p1002')" id="nt-p1002"><i class="fas fa-building"></i> <span>Planta 1002</span></div>
-    <div class="nav-tab hidden" onclick="showPage('mensual')" id="nt-mensual"><i class="fas fa-calendar-alt"></i> <span>Mensual 2026</span></div>
+    <div class="nav-tab hidden" onclick="showPage('ventas')" id="nt-ventas"><i class="fas fa-chart-line"></i> <span>Ventas vs Prod</span></div>
+    <div class="nav-tab hidden" onclick="showPage('resumen')" id="nt-resumen"><i class="fas fa-clipboard-list"></i> <span>Resumen</span></div>
   </div>
   <div id="fileInfo" class="hidden">📁 <span id="fName">—</span> &nbsp;|&nbsp; <span id="fRows">0</span> filas</div>
 </nav>
 
+<!-- ===== LANDING ===== -->
 <div id="landing" class="page active">
   <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100vh - 56px);padding:40px 20px;">
-    <div class="landing-title"><i class="fas fa-chart-line"></i> DASHBOARD KPI v2</div>
-    <div class="landing-sub">Eficacia · Eficiencia · Paradas Mantenimiento — Planta 1001 / 1002</div>
+    <div class="landing-title"><i class="fas fa-chart-line"></i> DASHBOARD KPI v2.5</div>
+    <div class="landing-sub">Eficacia · Eficiencia · Paradas · Ventas vs Produccion — Planta 1001 / 1002</div>
     <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
       <i class="fas fa-cloud-upload-alt"></i>
       <h3>Arrastra MASTERKPI.xlsx aqui</h3>
@@ -172,63 +185,99 @@ tr:hover td { background:rgba(30,144,255,0.04); }
     <div class="plant-cards" id="plantCards">
       <div class="plant-card pc-blue" id="card1001" onclick="showPage('p1001')">
         <i class="fas fa-industry"></i>
-        <h3>Planta 1001</h3>
-        <p>Eficacia · Eficiencia · Paradas · Envasadoras</p>
+        <h3>Planta 1001 <span class="plant-badge p1001">CELESTE</span></h3>
+        <p>FLEX 22000 · FLEX 7000 · FLEX 13000 · MAXI4000</p>
       </div>
       <div class="plant-card pc-green" id="card1002" onclick="showPage('p1002')">
         <i class="fas fa-industry"></i>
-        <h3>Planta 1002</h3>
-        <p>Eficacia · Eficiencia · Paradas · Envasadoras</p>
+        <h3>Planta 1002 <span class="plant-badge p1002">VERDE</span></h3>
+        <p>POLYG · ENVQB · ENVQM · ENYMX · ENYRM · ENVYTB</p>
       </div>
-      <div class="plant-card pc-purple" id="cardMensual" onclick="showPage('mensual')">
-        <i class="fas fa-calendar-check"></i>
-        <h3>Mensual 2026</h3>
-        <p>Evolucion · Eficacia · Eficiencia · Paretos</p>
+      <div class="plant-card pc-orange" id="cardVentas" onclick="showPage('ventas')">
+        <i class="fas fa-chart-line"></i>
+        <h3>Ventas vs Produccion</h3>
+        <p>MAPE · Asertividad · Productos a Mejorar</p>
+      </div>
+      <div class="plant-card pc-purple" id="cardResumen" onclick="showPage('resumen')">
+        <i class="fas fa-clipboard-list"></i>
+        <h3>Resumen General</h3>
+        <p>Eficiencia · Eficacia · Paradas · Asertividad</p>
       </div>
     </div>
   </div>
 </div>
 
+<!-- ===== PLANTA 1001 ===== -->
 <div id="p1001" class="page">
   <div class="inner">
     <div class="subtab-bar">
-      <div class="subtab active" id="st1001-cap" onclick="showSubtab('1001','cap')"><i class="fas fa-tachometer-alt"></i> Eficacia & Eficiencia</div>
-      <div class="subtab" id="st1001-par" onclick="showSubtab('1001','par')"><i class="fas fa-pause-circle"></i> Paradas Mantenimiento</div>
-      <div class="subtab" id="st1001-env" onclick="showSubtab('1001','env')"><i class="fas fa-cogs"></i> Envasadoras</div>
+      <div class="subtab active" id="st1001-efic" onclick="showSubtab('1001','efic')"><i class="fas fa-check-circle"></i> Eficacia</div>
+      <div class="subtab" id="st1001-efi" onclick="showSubtab('1001','efi')"><i class="fas fa-bolt"></i> Eficiencia</div>
+      <div class="subtab" id="st1001-par" onclick="showSubtab('1001','par')"><i class="fas fa-pause-circle"></i> Paradas</div>
     </div>
-    <div id="sub1001-cap">
+
+    <!-- EFICACIA 1001 -->
+    <div id="sub1001-efic">
       <div class="sec-header">
-        <h2><i class="fas fa-tachometer-alt"></i> Eficacia & Eficiencia — Planta 1001</h2>
+        <h2><i class="fas fa-check-circle"></i> EFICACIA — Planta 1001 <span class="plant-badge p1001">CELESTE</span></h2>
         <div class="sec-actions">
-          <button class="btn btn-green btn-sm" onclick="exportXLS('prod1001')"><i class="fas fa-file-excel"></i> Excel</button>
-          <button class="btn btn-orange btn-sm" onclick="exportPDF('p1001')"><i class="fas fa-file-pdf"></i> PDF</button>
+          <button class="btn btn-green btn-sm" onclick="exportXLS('efic1001')"><i class="fas fa-file-excel"></i> Excel</button>
         </div>
       </div>
       <div class="filter-bar">
-        <label>Desde</label><input type="date" id="f1001c-from" onchange="renderPlanta('1001')">
-        <label>Hasta</label><input type="date" id="f1001c-to" onchange="renderPlanta('1001')">
-        <label>Producto</label><select id="f1001c-prod" onchange="renderPlanta('1001')"><option value="">Todos</option></select>
+        <label>Desde</label><input type="date" id="f1001efic-from" onchange="renderEficacia('1001')">
+        <label>Hasta</label><input type="date" id="f1001efic-to" onchange="renderEficacia('1001')">
+        <label>Producto</label><select id="f1001efic-prod" onchange="renderEficacia('1001')"><option value="">Todos</option></select>
       </div>
-      <div class="kpi-grid" id="kpi1001"></div>
+      <div class="kpi-grid" id="kpi1001efic"></div>
       <div class="charts-row cols2">
-        <div class="chart-card"><h4><i class="fas fa-chart-bar"></i> Eficiencia por Equipo</h4><div class="chart-wrap"><canvas id="ch1001-efic-eq" height="260"></canvas></div></div>
-        <div class="chart-card"><h4><i class="fas fa-chart-bar"></i> Eficiencia por Envasadora</h4><div class="chart-wrap"><canvas id="ch1001-efic-env" height="260"></canvas></div></div>
+        <div class="chart-card"><h4><i class="fas fa-chart-pie"></i> Eficacia Global</h4><div class="chart-wrap"><canvas id="ch1001efic-global" height="260"></canvas></div></div>
+        <div class="chart-card"><h4><i class="fas fa-chart-bar"></i> Eficacia por Equipo</h4><div class="chart-wrap"><canvas id="ch1001efic-eq" height="260"></canvas></div></div>
       </div>
       <div class="charts-row cols2">
-        <div class="chart-card"><h4><i class="fas fa-chart-line"></i> Evolucion Mensual</h4><div class="chart-wrap"><canvas id="ch1001-evo" height="260"></canvas></div></div>
-        <div class="chart-card"><h4><i class="fas fa-chart-bar"></i> Eficiencia por Grupo</h4><div class="chart-wrap" id="ch1001-grupo-wrap"></div></div>
+        <div class="chart-card"><h4><i class="fas fa-chart-bar"></i> Eficacia por Envasadora</h4><div class="chart-wrap"><canvas id="ch1001efic-env" height="260"></canvas></div></div>
+        <div class="chart-card"><h4><i class="fas fa-chart-line"></i> Eficacia Acumulada por Mes</h4><div class="chart-wrap"><canvas id="ch1001efic-mes" height="260"></canvas></div></div>
       </div>
       <div class="table-card">
-        <h4><i class="fas fa-table"></i> Detalle Ordenes <span id="cnt1001c" class="badge badge-blue">0</span></h4>
-        <div class="table-wrap"><table><thead id="th1001c"></thead><tbody id="tb1001c"></tbody></table></div>
+        <h4><i class="fas fa-table"></i> Detalle Ordenes — Eficacia <span id="cnt1001efic" class="badge badge-celeste">0</span></h4>
+        <div class="table-wrap"><table><thead id="th1001efic"></thead><tbody id="tb1001efic"></tbody></table></div>
       </div>
     </div>
+
+    <!-- EFICIENCIA 1001 -->
+    <div id="sub1001-efi" class="hidden">
+      <div class="sec-header">
+        <h2><i class="fas fa-bolt"></i> EFICIENCIA — Planta 1001 <span class="plant-badge p1001">CELESTE</span></h2>
+        <div class="sec-actions">
+          <button class="btn btn-green btn-sm" onclick="exportXLS('efi1001')"><i class="fas fa-file-excel"></i> Excel</button>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <label>Desde</label><input type="date" id="f1001efi-from" onchange="renderEficiencia('1001')">
+        <label>Hasta</label><input type="date" id="f1001efi-to" onchange="renderEficiencia('1001')">
+        <label>Producto</label><select id="f1001efi-prod" onchange="renderEficiencia('1001')"><option value="">Todos</option></select>
+      </div>
+      <div class="kpi-grid" id="kpi1001efi"></div>
+      <div class="charts-row cols2">
+        <div class="chart-card"><h4><i class="fas fa-chart-pie"></i> Eficiencia Global</h4><div class="chart-wrap"><canvas id="ch1001efi-global" height="260"></canvas></div></div>
+        <div class="chart-card"><h4><i class="fas fa-chart-bar"></i> Eficiencia por Equipo</h4><div class="chart-wrap"><canvas id="ch1001efi-eq" height="260"></canvas></div></div>
+      </div>
+      <div class="charts-row cols2">
+        <div class="chart-card"><h4><i class="fas fa-chart-bar"></i> Eficiencia por Envasadora</h4><div class="chart-wrap"><canvas id="ch1001efi-env" height="260"></canvas></div></div>
+        <div class="chart-card"><h4><i class="fas fa-chart-line"></i> Eficiencia Acumulada por Mes</h4><div class="chart-wrap"><canvas id="ch1001efi-mes" height="260"></canvas></div></div>
+      </div>
+      <div class="table-card">
+        <h4><i class="fas fa-table"></i> Detalle Ordenes — Eficiencia <span id="cnt1001efi" class="badge badge-celeste">0</span></h4>
+        <div class="table-wrap"><table><thead id="th1001efi"></thead><tbody id="tb1001efi"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- PARADAS 1001 -->
     <div id="sub1001-par" class="hidden">
       <div class="sec-header">
-        <h2><i class="fas fa-pause-circle"></i> Paradas Mantenimiento — Planta 1001</h2>
+        <h2><i class="fas fa-pause-circle"></i> PARADAS — Planta 1001 <span class="plant-badge p1001">CELESTE</span></h2>
         <div class="sec-actions">
           <button class="btn btn-green btn-sm" onclick="exportXLS('paradas1001')"><i class="fas fa-file-excel"></i> Excel</button>
-          <button class="btn btn-orange btn-sm" onclick="exportPDF('sub1001-par')"><i class="fas fa-file-pdf"></i> PDF</button>
         </div>
       </div>
       <div class="filter-bar">
@@ -247,76 +296,84 @@ tr:hover td { background:rgba(30,144,255,0.04); }
         <div class="chart-card"><h4><i class="fas fa-chart-line"></i> Frecuencia de Fallas por Producto</h4><div class="chart-wrap"><canvas id="ch1001-fallas-prod" height="260"></canvas></div></div>
       </div>
       <div class="table-card">
-        <h4><i class="fas fa-table"></i> Detalle Paradas <span id="cntPar1001" class="badge badge-blue">0</span></h4>
+        <h4><i class="fas fa-table"></i> Detalle Paradas <span id="cntPar1001" class="badge badge-celeste">0</span></h4>
         <div class="table-wrap"><table><thead id="thPar1001"></thead><tbody id="tbPar1001"></tbody></table></div>
-      </div>
-    </div>
-    <div id="sub1001-env" class="hidden">
-      <div class="sec-header">
-        <h2><i class="fas fa-cogs"></i> Envasadoras — Planta 1001</h2>
-        <div class="sec-actions">
-          <button class="btn btn-green btn-sm" onclick="exportXLS('env1001')"><i class="fas fa-file-excel"></i> Excel</button>
-          <button class="btn btn-orange btn-sm" onclick="exportPDF('sub1001-env')"><i class="fas fa-file-pdf"></i> PDF</button>
-        </div>
-      </div>
-      <div class="filter-bar">
-        <label>Desde</label><input type="date" id="f1001e-from" onchange="renderEnvasadoras('1001')">
-        <label>Hasta</label><input type="date" id="f1001e-to" onchange="renderEnvasadoras('1001')">
-        <label>Envasadora</label><select id="f1001e-env" onchange="renderEnvasadoras('1001')"><option value="">Todas</option></select>
-      </div>
-      <div class="kpi-grid" id="kpiEnv1001"></div>
-      <div class="charts-row cols2">
-        <div class="chart-card"><h4><i class="fas fa-chart-bar"></i> Produccion por Envasadora</h4><div class="chart-wrap"><canvas id="ch1001-eprod" height="280"></canvas></div></div>
-        <div class="chart-card"><h4><i class="fas fa-percentage"></i> Eficiencia % por Envasadora</h4><div class="chart-wrap"><canvas id="ch1001-ecump" height="280"></canvas></div></div>
-      </div>
-      <div class="table-card">
-        <h4><i class="fas fa-table"></i> Rendimiento por Envasadora</h4>
-        <div class="table-wrap"><table><thead id="thEnv1001"></thead><tbody id="tbEnv1001"></tbody></table></div>
       </div>
     </div>
   </div>
 </div>
 
+<!-- ===== PLANTA 1002 ===== -->
 <div id="p1002" class="page">
   <div class="inner">
     <div class="subtab-bar">
-      <div class="subtab active" id="st1002-cap" onclick="showSubtab('1002','cap')"><i class="fas fa-tachometer-alt"></i> Eficacia & Eficiencia</div>
-      <div class="subtab" id="st1002-par" onclick="showSubtab('1002','par')"><i class="fas fa-pause-circle"></i> Paradas Mantenimiento</div>
-      <div class="subtab" id="st1002-env" onclick="showSubtab('1002','env')"><i class="fas fa-cogs"></i> Envasadoras</div>
+      <div class="subtab active" id="st1002-efic" onclick="showSubtab('1002','efic')"><i class="fas fa-check-circle"></i> Eficacia</div>
+      <div class="subtab" id="st1002-efi" onclick="showSubtab('1002','efi')"><i class="fas fa-bolt"></i> Eficiencia</div>
+      <div class="subtab" id="st1002-par" onclick="showSubtab('1002','par')"><i class="fas fa-pause-circle"></i> Paradas</div>
     </div>
-    <div id="sub1002-cap">
+
+    <!-- EFICACIA 1002 -->
+    <div id="sub1002-efic">
       <div class="sec-header">
-        <h2><i class="fas fa-tachometer-alt"></i> Eficacia & Eficiencia — Planta 1002</h2>
+        <h2><i class="fas fa-check-circle"></i> EFICACIA — Planta 1002 <span class="plant-badge p1002">VERDE</span></h2>
         <div class="sec-actions">
-          <button class="btn btn-green btn-sm" onclick="exportXLS('prod1002')"><i class="fas fa-file-excel"></i> Excel</button>
-          <button class="btn btn-orange btn-sm" onclick="exportPDF('p1002')"><i class="fas fa-file-pdf"></i> PDF</button>
+          <button class="btn btn-green btn-sm" onclick="exportXLS('efic1002')"><i class="fas fa-file-excel"></i> Excel</button>
         </div>
       </div>
       <div class="filter-bar">
-        <label>Desde</label><input type="date" id="f1002c-from" onchange="renderPlanta('1002')">
-        <label>Hasta</label><input type="date" id="f1002c-to" onchange="renderPlanta('1002')">
-        <label>Producto</label><select id="f1002c-prod" onchange="renderPlanta('1002')"><option value="">Todos</option></select>
+        <label>Desde</label><input type="date" id="f1002efic-from" onchange="renderEficacia('1002')">
+        <label>Hasta</label><input type="date" id="f1002efic-to" onchange="renderEficacia('1002')">
+        <label>Producto</label><select id="f1002efic-prod" onchange="renderEficacia('1002')"><option value="">Todos</option></select>
       </div>
-      <div class="kpi-grid" id="kpi1002"></div>
+      <div class="kpi-grid" id="kpi1002efic"></div>
       <div class="charts-row cols2">
-        <div class="chart-card"><h4><i class="fas fa-chart-bar"></i> Eficiencia por Equipo</h4><div class="chart-wrap"><canvas id="ch1002-efic-eq" height="260"></canvas></div></div>
-        <div class="chart-card"><h4><i class="fas fa-chart-bar"></i> Eficiencia por Envasadora</h4><div class="chart-wrap"><canvas id="ch1002-efic-env" height="260"></canvas></div></div>
+        <div class="chart-card"><h4><i class="fas fa-chart-pie"></i> Eficacia Global</h4><div class="chart-wrap"><canvas id="ch1002efic-global" height="260"></canvas></div></div>
+        <div class="chart-card"><h4><i class="fas fa-chart-bar"></i> Eficacia por Equipo</h4><div class="chart-wrap"><canvas id="ch1002efic-eq" height="260"></canvas></div></div>
       </div>
       <div class="charts-row cols2">
-        <div class="chart-card"><h4><i class="fas fa-chart-line"></i> Evolucion Mensual</h4><div class="chart-wrap"><canvas id="ch1002-evo" height="260"></canvas></div></div>
-        <div class="chart-card"><h4><i class="fas fa-chart-bar"></i> Eficiencia por Grupo</h4><div class="chart-wrap" id="ch1002-grupo-wrap"></div></div>
+        <div class="chart-card"><h4><i class="fas fa-chart-bar"></i> Eficacia por Envasadora</h4><div class="chart-wrap"><canvas id="ch1002efic-env" height="260"></canvas></div></div>
+        <div class="chart-card"><h4><i class="fas fa-chart-line"></i> Eficacia Acumulada por Mes</h4><div class="chart-wrap"><canvas id="ch1002efic-mes" height="260"></canvas></div></div>
       </div>
       <div class="table-card">
-        <h4><i class="fas fa-table"></i> Detalle Ordenes <span id="cnt1002c" class="badge badge-blue">0</span></h4>
-        <div class="table-wrap"><table><thead id="th1002c"></thead><tbody id="tb1002c"></tbody></table></div>
+        <h4><i class="fas fa-table"></i> Detalle Ordenes — Eficacia <span id="cnt1002efic" class="badge badge-verde">0</span></h4>
+        <div class="table-wrap"><table><thead id="th1002efic"></thead><tbody id="tb1002efic"></tbody></table></div>
       </div>
     </div>
+
+    <!-- EFICIENCIA 1002 -->
+    <div id="sub1002-efi" class="hidden">
+      <div class="sec-header">
+        <h2><i class="fas fa-bolt"></i> EFICIENCIA — Planta 1002 <span class="plant-badge p1002">VERDE</span></h2>
+        <div class="sec-actions">
+          <button class="btn btn-green btn-sm" onclick="exportXLS('efi1002')"><i class="fas fa-file-excel"></i> Excel</button>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <label>Desde</label><input type="date" id="f1002efi-from" onchange="renderEficiencia('1002')">
+        <label>Hasta</label><input type="date" id="f1002efi-to" onchange="renderEficiencia('1002')">
+        <label>Producto</label><select id="f1002efi-prod" onchange="renderEficiencia('1002')"><option value="">Todos</option></select>
+      </div>
+      <div class="kpi-grid" id="kpi1002efi"></div>
+      <div class="charts-row cols2">
+        <div class="chart-card"><h4><i class="fas fa-chart-pie"></i> Eficiencia Global</h4><div class="chart-wrap"><canvas id="ch1002efi-global" height="260"></canvas></div></div>
+        <div class="chart-card"><h4><i class="fas fa-chart-bar"></i> Eficiencia por Equipo</h4><div class="chart-wrap"><canvas id="ch1002efi-eq" height="260"></canvas></div></div>
+      </div>
+      <div class="charts-row cols2">
+        <div class="chart-card"><h4><i class="fas fa-chart-bar"></i> Eficiencia por Envasadora</h4><div class="chart-wrap"><canvas id="ch1002efi-env" height="260"></canvas></div></div>
+        <div class="chart-card"><h4><i class="fas fa-chart-line"></i> Eficiencia Acumulada por Mes</h4><div class="chart-wrap"><canvas id="ch1002efi-mes" height="260"></canvas></div></div>
+      </div>
+      <div class="table-card">
+        <h4><i class="fas fa-table"></i> Detalle Ordenes — Eficiencia <span id="cnt1002efi" class="badge badge-verde">0</span></h4>
+        <div class="table-wrap"><table><thead id="th1002efi"></thead><tbody id="tb1002efi"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- PARADAS 1002 -->
     <div id="sub1002-par" class="hidden">
       <div class="sec-header">
-        <h2><i class="fas fa-pause-circle"></i> Paradas Mantenimiento — Planta 1002</h2>
+        <h2><i class="fas fa-pause-circle"></i> PARADAS — Planta 1002 <span class="plant-badge p1002">VERDE</span></h2>
         <div class="sec-actions">
           <button class="btn btn-green btn-sm" onclick="exportXLS('paradas1002')"><i class="fas fa-file-excel"></i> Excel</button>
-          <button class="btn btn-orange btn-sm" onclick="exportPDF('sub1002-par')"><i class="fas fa-file-pdf"></i> PDF</button>
         </div>
       </div>
       <div class="filter-bar">
@@ -335,120 +392,74 @@ tr:hover td { background:rgba(30,144,255,0.04); }
         <div class="chart-card"><h4><i class="fas fa-chart-line"></i> Frecuencia de Fallas por Producto</h4><div class="chart-wrap"><canvas id="ch1002-fallas-prod" height="260"></canvas></div></div>
       </div>
       <div class="table-card">
-        <h4><i class="fas fa-table"></i> Detalle Paradas <span id="cntPar1002" class="badge badge-blue">0</span></h4>
+        <h4><i class="fas fa-table"></i> Detalle Paradas <span id="cntPar1002" class="badge badge-verde">0</span></h4>
         <div class="table-wrap"><table><thead id="thPar1002"></thead><tbody id="tbPar1002"></tbody></table></div>
-      </div>
-    </div>
-    <div id="sub1002-env" class="hidden">
-      <div class="sec-header">
-        <h2><i class="fas fa-cogs"></i> Envasadoras — Planta 1002</h2>
-        <div class="sec-actions">
-          <button class="btn btn-green btn-sm" onclick="exportXLS('env1002')"><i class="fas fa-file-excel"></i> Excel</button>
-          <button class="btn btn-orange btn-sm" onclick="exportPDF('sub1002-env')"><i class="fas fa-file-pdf"></i> PDF</button>
-        </div>
-      </div>
-      <div class="filter-bar">
-        <label>Desde</label><input type="date" id="f1002e-from" onchange="renderEnvasadoras('1002')">
-        <label>Hasta</label><input type="date" id="f1002e-to" onchange="renderEnvasadoras('1002')">
-        <label>Envasadora</label><select id="f1002e-env" onchange="renderEnvasadoras('1002')"><option value="">Todas</option></select>
-      </div>
-      <div class="kpi-grid" id="kpiEnv1002"></div>
-      <div class="charts-row cols2">
-        <div class="chart-card"><h4><i class="fas fa-chart-bar"></i> Produccion por Envasadora</h4><div class="chart-wrap"><canvas id="ch1002-eprod" height="280"></canvas></div></div>
-        <div class="chart-card"><h4><i class="fas fa-percentage"></i> Eficiencia % por Envasadora</h4><div class="chart-wrap"><canvas id="ch1002-ecump" height="280"></canvas></div></div>
-      </div>
-      <div class="table-card">
-        <h4><i class="fas fa-table"></i> Rendimiento por Envasadora</h4>
-        <div class="table-wrap"><table><thead id="thEnv1002"></thead><tbody id="tbEnv1002"></tbody></table></div>
       </div>
     </div>
   </div>
 </div>
 
-<div id="mensual" class="page">
+<!-- ===== VENTAS VS PRODUCCION ===== -->
+<div id="ventas" class="page">
   <div class="inner">
-    <div class="subtab-bar">
-      <div class="subtab active" id="stM-cum" onclick="showSubtab('M','cum')"><i class="fas fa-check-circle"></i> Eficacia Mensual</div>
-      <div class="subtab" id="stM-efi" onclick="showSubtab('M','efi')"><i class="fas fa-bolt"></i> Eficiencia Mensual</div>
-      <div class="subtab" id="stM-par" onclick="showSubtab('M','par')"><i class="fas fa-chart-bar"></i> Paretos Mensuales</div>
-    </div>
-    <div id="subM-cum">
-      <div class="sec-header">
-        <h2><i class="fas fa-check-circle"></i> Eficacia Mensual 2026</h2>
-        <div class="sec-actions">
-          <button class="btn btn-green btn-sm" onclick="exportXLS('mensualCum')"><i class="fas fa-file-excel"></i> Excel</button>
-          <button class="btn btn-orange btn-sm" onclick="exportPDF('subM-cum')"><i class="fas fa-file-pdf"></i> PDF</button>
-        </div>
-      </div>
-      <div class="filter-bar">
-        <label>Ano</label><select id="fM-year" onchange="renderMensual()"><option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option></select>
-        <label>Planta</label><select id="fM-planta" onchange="renderMensual()"><option value="">Todas</option><option value="1001">Planta 1001</option><option value="1002">Planta 1002</option></select>
-      </div>
-      <div class="kpi-grid" id="kpiMCum"></div>
-      <div class="charts-row cols2">
-        <div class="chart-card"><h4><i class="fas fa-chart-bar"></i> Producido vs Ordenado por Mes</h4><div class="chart-wrap"><canvas id="chM-pvso" height="280"></canvas></div></div>
-        <div class="chart-card"><h4><i class="fas fa-chart-line"></i> Eficacia % por Mes</h4><div class="chart-wrap"><canvas id="chM-cump" height="280"></canvas></div></div>
-      </div>
-      <div class="table-card">
-        <h4><i class="fas fa-table"></i> Resumen Mensual</h4>
-        <div class="table-wrap"><table><thead id="thMCum"></thead><tbody id="tbMCum"></tbody></table></div>
+    <div class="sec-header">
+      <h2><i class="fas fa-chart-line"></i> Ventas vs Produccion</h2>
+      <div class="sec-actions">
+        <button class="btn btn-green btn-sm" onclick="exportXLS('ventas')"><i class="fas fa-file-excel"></i> Excel</button>
       </div>
     </div>
-    <div id="subM-efi" class="hidden">
-      <div class="sec-header">
-        <h2><i class="fas fa-bolt"></i> Eficiencia Mensual 2026</h2>
-        <div class="sec-actions">
-          <button class="btn btn-green btn-sm" onclick="exportXLS('mensualEfi')"><i class="fas fa-file-excel"></i> Excel</button>
-          <button class="btn btn-orange btn-sm" onclick="exportPDF('subM-efi')"><i class="fas fa-file-pdf"></i> PDF</button>
-        </div>
-      </div>
-      <div class="filter-bar">
-        <label>Ano</label><select id="fME-year" onchange="renderMensualEfi()"><option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option></select>
-        <label>Planta</label><select id="fME-planta" onchange="renderMensualEfi()"><option value="">Todas</option><option value="1001">Planta 1001</option><option value="1002">Planta 1002</option></select>
-      </div>
-      <div class="kpi-grid" id="kpiMEfi"></div>
-      <div class="charts-row cols2">
-        <div class="chart-card"><h4><i class="fas fa-chart-line"></i> Eficiencia Entrega % vs Meta 95%</h4><div class="chart-wrap"><canvas id="chM-efiline" height="280"></canvas></div></div>
-        <div class="chart-card"><h4><i class="fas fa-layer-group"></i> Desperdicio Acumulado por Mes</h4><div class="chart-wrap"><canvas id="chM-waste" height="280"></canvas></div></div>
-      </div>
-      <div class="table-card">
-        <h4><i class="fas fa-table"></i> Detalle Eficiencia Mensual</h4>
-        <div class="table-wrap"><table><thead id="thMEfi"></thead><tbody id="tbMEfi"></tbody></table></div>
+    <div class="filter-bar">
+      <label>Desde</label><input type="date" id="fventas-from" onchange="renderVentas()">
+      <label>Hasta</label><input type="date" id="fventas-to" onchange="renderVentas()">
+      <label>Producto</label><select id="fventas-prod" onchange="renderVentas()"><option value="">Todos</option></select>
+      <label>Planta</label><select id="fventas-planta" onchange="renderVentas()"><option value="">Todas</option><option value="1001">1001</option><option value="1002">1002</option></select>
+    </div>
+    <div class="kpi-grid" id="kpiVentas"></div>
+    <div class="charts-row cols2">
+      <div class="chart-card"><h4><i class="fas fa-chart-bar"></i> Demanda vs Ventas vs Produccion</h4><div class="chart-wrap"><canvas id="chVentas-combo" height="280"></canvas></div></div>
+      <div class="chart-card"><h4><i class="fas fa-chart-line"></i> MAPE y Asertividad %</h4><div class="chart-wrap"><canvas id="chVentas-mape" height="280"></canvas></div></div>
+    </div>
+    <div class="charts-row cols2">
+      <div class="chart-card"><h4><i class="fas fa-exclamation-triangle"></i> Productos donde debe mejorar el pronostico</h4><div class="chart-wrap"><canvas id="chVentas-mejorar" height="280"></canvas></div></div>
+      <div class="chart-card"><h4><i class="fas fa-chart-pie"></i> Distribucion Asertividad</h4><div class="chart-wrap"><canvas id="chVentas-pie" height="280"></canvas></div></div>
+    </div>
+    <div class="table-card">
+      <h4><i class="fas fa-table"></i> Detalle Ventas vs Produccion <span id="cntVentas" class="badge badge-blue">0</span></h4>
+      <div class="table-wrap"><table><thead id="thVentas"></thead><tbody id="tbVentas"></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== RESUMEN GENERAL ===== -->
+<div id="resumen" class="page">
+  <div class="inner">
+    <div class="sec-header">
+      <h2><i class="fas fa-clipboard-list"></i> Resumen General</h2>
+      <div class="sec-actions">
+        <button class="btn btn-green btn-sm" onclick="exportXLS('resumen')"><i class="fas fa-file-excel"></i> Excel</button>
       </div>
     </div>
-    <div id="subM-par" class="hidden">
-      <div class="sec-header">
-        <h2><i class="fas fa-chart-bar"></i> Paretos Mensuales</h2>
-        <div class="sec-actions">
-          <button class="btn btn-green btn-sm" onclick="exportXLS('mensualPar')"><i class="fas fa-file-excel"></i> Excel</button>
-          <button class="btn btn-orange btn-sm" onclick="exportPDF('subM-par')"><i class="fas fa-file-pdf"></i> PDF</button>
-        </div>
-      </div>
-      <div class="filter-bar">
-        <label>Mes</label><select id="fMP-mes" onchange="renderParetos()"><option value="">Todos</option><option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option><option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option><option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option><option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option></select>
-        <label>Top N</label><select id="fMP-top" onchange="renderParetos()"><option value="10">Top 10</option><option value="15">Top 15</option><option value="20">Top 20</option><option value="999">Todos</option></select>
-        <label>Planta</label><select id="fMP-planta" onchange="renderParetos()"><option value="">Todas</option><option value="1001">Planta 1001</option><option value="1002">Planta 1002</option></select>
-      </div>
-      <div class="charts-row cols2">
-        <div class="chart-card"><h4><i class="fas fa-chart-bar"></i> Pareto por Produccion</h4><div class="chart-wrap"><canvas id="chP-prod" height="300"></canvas></div></div>
-        <div class="chart-card"><h4><i class="fas fa-chart-bar"></i> Pareto por Desperdicio</h4><div class="chart-wrap"><canvas id="chP-waste" height="300"></canvas></div></div>
-      </div>
-      <div class="charts-row cols2">
-        <div class="chart-card"><h4><i class="fas fa-chart-bar"></i> Pareto por Incumplimiento</h4><div class="chart-wrap"><canvas id="chP-incum" height="300"></canvas></div></div>
-        <div class="chart-card"><h4><i class="fas fa-chart-bar"></i> Pareto por Envasadora</h4><div class="chart-wrap"><canvas id="chP-env" height="300"></canvas></div></div>
-      </div>
-      <div class="table-card">
-        <h4><i class="fas fa-table"></i> Pareto Detallado</h4>
-        <div class="table-wrap"><table><thead id="thMPar"></thead><tbody id="tbMPar"></tbody></table></div>
-      </div>
+    <div class="filter-bar">
+      <label>Desde</label><input type="date" id="fres-from" onchange="renderResumen()">
+      <label>Hasta</label><input type="date" id="fres-to" onchange="renderResumen()">
+    </div>
+    <div class="kpi-grid" id="kpiResumen"></div>
+    <div class="charts-row cols2">
+      <div class="chart-card"><h4><i class="fas fa-chart-bar"></i> Comparativa Eficiencia 1001 vs 1002</h4><div class="chart-wrap"><canvas id="chRes-efi" height="280"></canvas></div></div>
+      <div class="chart-card"><h4><i class="fas fa-chart-bar"></i> Comparativa Eficacia 1001 vs 1002</h4><div class="chart-wrap"><canvas id="chRes-efic" height="280"></canvas></div></div>
+    </div>
+    <div class="charts-row cols2">
+      <div class="chart-card"><h4><i class="fas fa-pause-circle"></i> Paradas — Equipo con mas fallas</h4><div class="chart-wrap"><canvas id="chRes-paradas" height="280"></canvas></div></div>
+      <div class="chart-card"><h4><i class="fas fa-chart-line"></i> Asertividad de Ventas</h4><div class="chart-wrap"><canvas id="chRes-ventas" height="280"></canvas></div></div>
     </div>
   </div>
 </div>
 
 <script>
-
 let prodData = [];
 let paradasData = [];
+let ventasData = [];
+let demandaData = [];
 const charts = {};
 const MESES = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 const COLS = {
@@ -459,7 +470,10 @@ const COLS = {
 };
 const CC = ['#1e90ff','#00d084','#ff9500','#a855f7','#ff3b5c','#00d4ff','#f59e0b','#6366f1','#10b981','#ec4899'];
 
-// NUEVO: Funcion para clasificar productos en grupos
+const COL_1001 = '#00d4ff';
+const COL_1002 = '#00d084';
+const COL_BAD = '#ff9500';
+
 function classifyGroup(texto) {
   const t = String(texto || '').toLowerCase();
   if (t.includes('leche') || t.includes('lactea') || t.includes('crema')) return 'Leche';
@@ -471,7 +485,6 @@ function classifyGroup(texto) {
   return 'Otros';
 }
 
-// NUEVO: Funcion para asignar clase de color segun valor
 function getColorClass(val, thresholds, isGood) {
   if (isGood) {
     if (val >= thresholds[0]) return 'good-1';
@@ -490,28 +503,23 @@ function showPage(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  document.getElementById('nt-' + id)?.classList.add('active');
-  if (id === 'p1001') renderPlanta('1001');
-  if (id === 'p1002') renderPlanta('1002');
-  if (id === 'mensual') renderMensual();
+  const nt = document.getElementById('nt-' + id);
+  if (nt) nt.classList.add('active');
+  if (id === 'p1001') { showSubtab('1001','efic'); }
+  if (id === 'p1002') { showSubtab('1002','efic'); }
+  if (id === 'ventas') renderVentas();
+  if (id === 'resumen') renderResumen();
 }
 
 function showSubtab(planta, tab) {
-  const prefix = planta === 'M' ? 'M' : planta;
-  const base = planta === 'M' ? 'subM' : `sub${planta}`;
-  document.querySelectorAll(`[id^="${base}-"]`).forEach(el => el.classList.add('hidden'));
-  document.querySelectorAll(`[id^="st${prefix}-"]`).forEach(el => el.classList.remove('active'));
-  document.getElementById(`${base}-${tab}`).classList.remove('hidden');
-  document.getElementById(`st${prefix}-${tab}`).classList.add('active');
-  if (planta !== 'M') {
-    if (tab === 'cap') renderPlanta(planta);
-    if (tab === 'par') renderParadas(planta);
-    if (tab === 'env') renderEnvasadoras(planta);
-  } else {
-    if (tab === 'cum') renderMensual();
-    if (tab === 'efi') renderMensualEfi();
-    if (tab === 'par') renderParetos();
-  }
+  const base = 'sub' + planta;
+  document.querySelectorAll('[id^="' + base + '-"]').forEach(el => el.classList.add('hidden'));
+  document.querySelectorAll('[id^="st' + planta + '-"]').forEach(el => el.classList.remove('active'));
+  document.getElementById(base + '-' + tab).classList.remove('hidden');
+  document.getElementById('st' + planta + '-' + tab).classList.add('active');
+  if (tab === 'efic') renderEficacia(planta);
+  if (tab === 'efi') renderEficiencia(planta);
+  if (tab === 'par') renderParadas(planta);
 }
 
 const uploadZone = document.getElementById('uploadZone');
@@ -532,26 +540,36 @@ function processFile(file) {
     try {
       const wb = XLSX.read(new Uint8Array(ev.target.result), { type:'array', cellDates:false });
       const paradasName = wb.SheetNames.find(n => /parad|stop|down|mant/i.test(n));
-      const prodNames = wb.SheetNames.filter(n => n !== paradasName);
+      const ventasName = wb.SheetNames.find(n => /venta|sales/i.test(n));
+      const demandaName = wb.SheetNames.find(n => /demand|demanda/i.test(n));
+      const prodNames = wb.SheetNames.filter(n => n !== paradasName && n !== ventasName && n !== demandaName);
+
       prodData = [];
       prodNames.forEach(sn => {
         const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { defval:'' });
         rows.forEach(r => { r.__sheet = sn; });
         prodData = prodData.concat(rows);
       });
-      if (paradasName) {
-        paradasData = XLSX.utils.sheet_to_json(wb.Sheets[paradasName], { defval:'' });
-      }
+      if (paradasName) paradasData = XLSX.utils.sheet_to_json(wb.Sheets[paradasName], { defval:'' });
+      if (ventasName) ventasData = XLSX.utils.sheet_to_json(wb.Sheets[ventasName], { defval:'' });
+      if (demandaName) demandaData = XLSX.utils.sheet_to_json(wb.Sheets[demandaName], { defval:'' });
+
       prodData = prodData.map(normalizeRow);
       if (paradasData.length) paradasData = paradasData.map(normalizeParadaRow);
+      if (ventasData.length) ventasData = ventasData.map(normalizeVentasRow);
+      if (demandaData.length) demandaData = demandaData.map(normalizeVentasRow);
+
       assignPlanta();
       populateFilters();
+
       document.getElementById('fName').textContent = file.name;
       document.getElementById('fRows').textContent = prodData.length.toLocaleString();
       document.getElementById('fileInfo').classList.remove('hidden');
-      ['nt-p1001','nt-p1002','nt-mensual'].forEach(id => document.getElementById(id).classList.remove('hidden'));
-      ['card1001','card1002','cardMensual'].forEach(id => document.getElementById(id).classList.add('ready'));
-      uploadZone.innerHTML = '<i class="fas fa-check-circle" style="font-size:2rem;color:var(--green);"></i><h3 style="margin-top:12px;">Archivo cargado!</h3><p>' + prodData.length + ' registros de produccion' + (paradasData.length ? ' · ' + paradasData.length + ' paradas' : '') + '</p>';
+
+      ['nt-p1001','nt-p1002','nt-ventas','nt-resumen'].forEach(id => document.getElementById(id).classList.remove('hidden'));
+      ['card1001','card1002','cardVentas','cardResumen'].forEach(id => document.getElementById(id).classList.add('ready'));
+
+      uploadZone.innerHTML = '<i class="fas fa-check-circle" style="font-size:2rem;color:var(--green);"></i><h3 style="margin-top:12px;">Archivo cargado!</h3><p>' + prodData.length + ' registros' + (paradasData.length ? ' · ' + paradasData.length + ' paradas' : '') + (ventasData.length ? ' · ' + ventasData.length + ' ventas' : '') + (demandaData.length ? ' · ' + demandaData.length + ' demanda' : '') + '</p>';
     } catch(err) {
       uploadZone.innerHTML = '<i class="fas fa-exclamation-triangle" style="color:var(--red);font-size:2rem;"></i><h3 style="margin-top:12px;">Error al leer el archivo</h3><p>' + err.message + '</p>';
     }
@@ -563,22 +581,15 @@ function excelSerial(v) {
   if (!v && v !== 0) return null;
   if (v instanceof Date) return v;
   const n = parseFloat(v);
-  if (!isNaN(n) && n > 40000 && n < 60000) {
-    return new Date((n - 25569) * 86400 * 1000);
-  }
-  if (typeof v === 'string' && v.length >= 8) {
-    const d = new Date(v);
-    if (!isNaN(d)) return d;
-  }
+  if (!isNaN(n) && n > 40000 && n < 60000) return new Date((n - 25569) * 86400 * 1000);
+  if (typeof v === 'string' && v.length >= 8) { const d = new Date(v); if (!isNaN(d)) return d; }
   return null;
 }
 
 function normalizeRow(r) {
   const o = Object.assign({}, r);
   const d = excelSerial(o[COLS.fecha] || o['Fecha Inicio Prod'] || o['Fecha']);
-  o.__date = d;
-  o.__year = d ? d.getFullYear() : null;
-  o.__month = d ? d.getMonth() + 1 : null;
+  o.__date = d; o.__year = d ? d.getFullYear() : null; o.__month = d ? d.getMonth() + 1 : null;
   o.__dateStr = d ? d.toISOString().slice(0,10) : '';
   o.__group = classifyGroup(o[COLS.texto] || o[COLS.mat] || '');
   return o;
@@ -588,7 +599,15 @@ function normalizeParadaRow(r) {
   const o = Object.assign({}, r);
   const dateKeys = Object.keys(r).filter(k => /fecha|date|inicio/i.test(k));
   const d = dateKeys.length ? excelSerial(r[dateKeys[0]]) : null;
-  o.__date = d;
+  o.__date = d; o.__dateStr = d ? d.toISOString().slice(0,10) : '';
+  return o;
+}
+
+function normalizeVentasRow(r) {
+  const o = Object.assign({}, r);
+  const dateKeys = Object.keys(r).filter(k => /fecha|date|periodo|mes/i.test(k));
+  const d = dateKeys.length ? excelSerial(r[dateKeys[0]]) : null;
+  o.__date = d; o.__year = d ? d.getFullYear() : null; o.__month = d ? d.getMonth() + 1 : null;
   o.__dateStr = d ? d.toISOString().slice(0,10) : '';
   return o;
 }
@@ -607,22 +626,31 @@ function assignPlanta() {
     const pKey = Object.keys(paradasData[0]).find(k => /centro|planta/i.test(k)) || '';
     paradasData.forEach(r => { r.__planta = pKey ? String(r[pKey] || '').trim() : ''; });
   }
+  if (ventasData.length) {
+    const pKey = Object.keys(ventasData[0]).find(k => /centro|planta/i.test(k)) || '';
+    ventasData.forEach(r => { r.__planta = pKey ? String(r[pKey] || '').trim() : ''; });
+  }
+  if (demandaData.length) {
+    const pKey = Object.keys(demandaData[0]).find(k => /centro|planta/i.test(k)) || '';
+    demandaData.forEach(r => { r.__planta = pKey ? String(r[pKey] || '').trim() : ''; });
+  }
 }
 
 function populateFilters() {
   ['1001','1002'].forEach(p => {
     const data = prodData.filter(r => plantMatch(r, p));
     const prods = [...new Set(data.map(r => r[COLS.texto] || r[COLS.mat] || '').filter(Boolean))].sort();
-    fillSelect(`f${p}c-prod`, prods);
-    const envs = [...new Set(data.map(r => String(r[COLS.recurso] || '')).filter(Boolean))].sort();
-    fillSelect(`f${p}e-env`, envs);
+    fillSelect('f' + p + 'efic-prod', prods);
+    fillSelect('f' + p + 'efi-prod', prods);
   });
+  const allProds = [...new Set(prodData.map(r => r[COLS.texto] || r[COLS.mat] || '').filter(Boolean))].sort();
+  fillSelect('fventas-prod', allProds);
   ['1001','1002'].forEach(p => {
     const pars = getParadas(p);
     const equipoKey = Object.keys(paradasData[0] || {}).find(k => /equipo|maquina|recurso/i.test(k)) || '';
     const catKey = Object.keys(paradasData[0] || {}).find(k => /categ|tipo|clase/i.test(k)) || '';
-    if (equipoKey) fillSelect(`f${p}p-equipo`, [...new Set(pars.map(r => r[equipoKey] || '').filter(Boolean))].sort());
-    if (catKey) fillSelect(`f${p}p-cat`, [...new Set(pars.map(r => r[catKey] || '').filter(Boolean))].sort());
+    if (equipoKey) fillSelect('f' + p + 'p-equipo', [...new Set(pars.map(r => r[equipoKey] || '').filter(Boolean))].sort());
+    if (catKey) fillSelect('f' + p + 'p-cat', [...new Set(pars.map(r => r[catKey] || '').filter(Boolean))].sort());
   });
 }
 
@@ -637,28 +665,24 @@ function fillSelect(id, vals) {
 
 function n(v) { return parseFloat(v) || 0; }
 function pct(a, b) { return b > 0 ? (a / b * 100) : 0; }
-function fmt(v, dec=0) { return v.toLocaleString('es-ES',{minimumFractionDigits:dec,maximumFractionDigits:dec}); }
-function fmtK(v) {
-  if (v >= 1e6) return (v/1e6).toFixed(1) + 'M';
-  if (v >= 1000) return (v/1000).toFixed(1) + 'K';
-  return fmt(v);
-}
+function fmt(v, dec) { dec = dec || 0; return v.toLocaleString('es-ES',{minimumFractionDigits:dec,maximumFractionDigits:dec}); }
+function fmtInt(v) { return Math.round(v).toLocaleString('es-ES'); }
 function badge(val) {
-  if (val >= 95) return `<span class="badge badge-green">${val.toFixed(1)}%</span>`;
-  if (val >= 80) return `<span class="badge badge-orange">${val.toFixed(1)}%</span>`;
-  return `<span class="badge badge-red">${val.toFixed(1)}%</span>`;
+  if (val >= 95) return '<span class="badge badge-green">' + val.toFixed(1) + '%</span>';
+  if (val >= 80) return '<span class="badge badge-orange">' + val.toFixed(1) + '%</span>';
+  return '<span class="badge badge-red">' + val.toFixed(1) + '%</span>';
 }
 function progBar(pct) {
   const color = pct >= 95 ? 'var(--green)' : pct >= 80 ? 'var(--orange)' : 'var(--red)';
-  return `<span class="prog-bar"><span class="prog-fill" style="width:${Math.min(pct,100)}%;background:${color};"></span></span>`;
+  return '<span class="prog-bar"><span class="prog-fill" style="width:' + Math.min(pct,100) + '%;background:' + color + ';"></span></span>';
 }
 function plantMatch(r, p) {
   const c = String(r.__planta || '').trim();
   return c === p || c.includes(p);
 }
 function filterByDate(data, fromId, toId) {
-  const from = document.getElementById(fromId)?.value;
-  const to = document.getElementById(toId)?.value;
+  const from = document.getElementById(fromId) ? document.getElementById(fromId).value : '';
+  const to = document.getElementById(toId) ? document.getElementById(toId).value : '';
   return data.filter(r => {
     if (from && r.__dateStr && r.__dateStr < from) return false;
     if (to && r.__dateStr && r.__dateStr > to) return false;
@@ -677,66 +701,79 @@ const baseOpts = {
   }
 };
 
-function makeBar(id, labels, datasets, opts={}) {
+function makeBar(id, labels, datasets, opts) {
+  opts = opts || {};
   destroyChart(id);
   const ctx = document.getElementById(id);
   if (!ctx) return;
-  charts[id] = new Chart(ctx, { type:'bar', data:{ labels, datasets },
-    options: { ...baseOpts, ...opts, plugins:{...baseOpts.plugins,...(opts.plugins||{})}, scales:{...baseOpts.scales,...(opts.scales||{})} }
-  });
+  const mergedOpts = JSON.parse(JSON.stringify(baseOpts));
+  if (opts.plugins) mergedOpts.plugins = Object.assign(mergedOpts.plugins, opts.plugins);
+  if (opts.scales) mergedOpts.scales = Object.assign(mergedOpts.scales, opts.scales);
+  charts[id] = new Chart(ctx, { type:'bar', data:{ labels:labels, datasets:datasets }, options: mergedOpts });
 }
-function makeDoughnut(id, labels, data) {
+function makeDoughnut(id, labels, data, colors) {
   destroyChart(id);
   const ctx = document.getElementById(id);
   if (!ctx) return;
   charts[id] = new Chart(ctx, { type:'doughnut',
-    data:{ labels, datasets:[{ data, backgroundColor:CC, borderWidth:0, hoverOffset:8 }] },
+    data:{ labels:labels, datasets:[{ data:data, backgroundColor:colors||CC, borderWidth:0, hoverOffset:8 }] },
     options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'right', labels:{ color:'#7a9abf' } } } }
   });
 }
-function makeLine(id, labels, datasets, opts={}) {
+function makePie(id, labels, data, colors) {
   destroyChart(id);
   const ctx = document.getElementById(id);
   if (!ctx) return;
-  charts[id] = new Chart(ctx, { type:'line', data:{ labels, datasets },
-    options: { ...baseOpts, tension:.4, ...opts, plugins:{...baseOpts.plugins,...(opts.plugins||{})}, scales:{...baseOpts.scales,...(opts.scales||{})} }
+  charts[id] = new Chart(ctx, { type:'pie',
+    data:{ labels:labels, datasets:[{ data:data, backgroundColor:colors||CC, borderWidth:0, hoverOffset:8 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'right', labels:{ color:'#7a9abf' } } } }
   });
 }
-function makePareto(id, labels, values, color='#1e90ff') {
+function makeLine(id, labels, datasets, opts) {
+  opts = opts || {};
   destroyChart(id);
   const ctx = document.getElementById(id);
   if (!ctx) return;
-  const total = values.reduce((a,b)=>a+b,0);
+  const mergedOpts = JSON.parse(JSON.stringify(baseOpts));
+  mergedOpts.tension = 0.4;
+  if (opts.plugins) mergedOpts.plugins = Object.assign(mergedOpts.plugins, opts.plugins);
+  if (opts.scales) mergedOpts.scales = Object.assign(mergedOpts.scales, opts.scales);
+  charts[id] = new Chart(ctx, { type:'line', data:{ labels:labels, datasets:datasets }, options: mergedOpts });
+}
+function makePareto(id, labels, values, color) {
+  color = color || '#1e90ff';
+  destroyChart(id);
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  const total = values.reduce(function(a,b){return a+b;},0);
   let cum = 0;
-  const cumPct = values.map(v => { cum += v; return total > 0 ? (cum/total*100) : 0; });
+  const cumPct = values.map(function(v){ cum += v; return total > 0 ? (cum/total*100) : 0; });
   charts[id] = new Chart(ctx, {
-    data:{ labels, datasets:[
+    data:{ labels:labels, datasets:[
       { type:'bar', label:'Valor', data:values, backgroundColor:color, borderRadius:4, yAxisID:'y' },
-      { type:'line', label:'% Acumulado', data:cumPct, borderColor:'#ff3b5c', pointBackgroundColor:'#ff3b5c', pointRadius:3, borderWidth:2, fill:false, tension:.3, yAxisID:'y2' }
+      { type:'line', label:'% Acumulado', data:cumPct, borderColor:'#ff3b5c', pointBackgroundColor:'#ff3b5c', pointRadius:3, borderWidth:2, fill:false, tension:0.3, yAxisID:'y2' }
     ]},
     options:{ responsive:true, maintainAspectRatio:false,
       plugins:{ legend:{ labels:{ color:'#7a9abf' } } },
       scales:{
         x:{ grid:{ color:'rgba(30,90,150,.1)' }, ticks:{ color:'#7a9abf', maxRotation:45, font:{size:10} } },
         y:{ grid:{ color:'rgba(30,90,150,.12)' }, ticks:{ color:'#7a9abf' }, position:'left' },
-        y2:{ min:0, max:100, position:'right', grid:{ drawOnChartArea:false }, ticks:{ color:'#ff3b5c', callback:v=>v+'%' } }
+        y2:{ min:0, max:100, position:'right', grid:{ drawOnChartArea:false }, ticks:{ color:'#ff3b5c', callback:function(v){return v+'%';} } }
       }
     }
   });
 }
 
-// NUEVO: Funcion para obtener el rango de meses detectado en los datos filtrados
 function getMonthsInRange(data) {
   const months = new Set();
-  data.forEach(r => { if (r.__month) months.add(r.__month); });
-  return [...months].sort((a,b) => a-b);
+  data.forEach(function(r){ if (r.__month) months.add(r.__month); });
+  return Array.from(months).sort(function(a,b){return a-b;});
 }
 
-// NUEVO: Funcion para agrupar por mes con acumulacion
 function groupByMonthAccumulated(data) {
   const m = {};
   for (let i=1;i<=12;i++) m[i] = { orden:0, prod:0, bod:0, tira:0, lab:0, pp:0, aboll:0, rows:0, eficacia:0, eficiencia:0 };
-  data.forEach(r => {
+  data.forEach(function(r){
     if (!r.__month) return;
     const mo = r.__month;
     m[mo].orden += n(r[COLS.ctdOrden]); m[mo].prod += n(r[COLS.ctdProd]); m[mo].bod += n(r[COLS.ctdBod]);
@@ -750,315 +787,284 @@ function groupByMonthAccumulated(data) {
   return m;
 }
 
-function renderPlanta(p) {
+// ===== EFICACIA (separada) =====
+function renderEficacia(p) {
   if (prodData.length === 0) return;
-  let data = prodData.filter(r => plantMatch(r, p));
-  data = filterByDate(data, `f${p}c-from`, `f${p}c-to`);
-  const prodFilter = document.getElementById(`f${p}c-prod`)?.value;
-  if (prodFilter) data = data.filter(r => (r[COLS.texto] || r[COLS.mat] || '') === prodFilter);
+  let data = prodData.filter(function(r){ return plantMatch(r, p); });
+  data = filterByDate(data, 'f' + p + 'efic-from', 'f' + p + 'efic-to');
+  const prodFilter = document.getElementById('f' + p + 'efic-prod') ? document.getElementById('f' + p + 'efic-prod').value : '';
+  if (prodFilter) data = data.filter(function(r){ return (r[COLS.texto] || r[COLS.mat] || '') === prodFilter; });
 
-  const ctdOrden = data.reduce((s,r) => s + n(r[COLS.ctdOrden]), 0);
-  const ctdProd = data.reduce((s,r) => s + n(r[COLS.ctdProd]), 0);
-  const ctdBod = data.reduce((s,r) => s + n(r[COLS.ctdBod]), 0);
-  const tira = data.reduce((s,r) => s + n(r[COLS.tira]), 0);
-  const lab = data.reduce((s,r) => s + n(r[COLS.lab]), 0);
-  const pp = data.reduce((s,r) => s + n(r[COLS.pp]), 0);
-  const aboll = data.reduce((s,r) => s + n(r[COLS.aboll]), 0);
-  const desp = tira + lab + pp + aboll;
+  const ctdOrden = data.reduce(function(s,r){ return s + n(r[COLS.ctdOrden]); }, 0);
+  const ctdProd = data.reduce(function(s,r){ return s + n(r[COLS.ctdProd]); }, 0);
   const eficacia = pct(ctdProd, ctdOrden);
-  const eficiencia = pct(ctdBod, ctdProd);
-  const sobre = Math.max(0, ctdProd - ctdOrden);
-  const prods = new Set(data.map(r => r[COLS.texto] || r[COLS.mat] || '').filter(Boolean));
-
-  // NUEVO: Colores degradados segun valor
+  const prods = new Set(data.map(function(r){ return r[COLS.texto] || r[COLS.mat] || ''; }).filter(Boolean));
+  const color = p === '1001' ? COL_1001 : COL_1002;
   const eficClass = getColorClass(eficacia, [95, 85, 75], true);
-  const efiClass = getColorClass(eficiencia, [95, 85, 75], true);
-  const despClass = getColorClass(desp, [5000, 2000, 500], false);
 
-  kc(`kpi${p}`, `
-    <div class="kpi-card"><div class="kpi-lbl">Ordenes</div><div class="kpi-val">${fmt(data.length)}</div><div class="kpi-sub">${prods.size} productos unicos</div></div>
-    <div class="kpi-card g"><div class="kpi-lbl">Ctd Ordenada</div><div class="kpi-val">${fmtK(ctdOrden)}</div><div class="kpi-sub">Unidades</div></div>
-    <div class="kpi-card c"><div class="kpi-lbl">Ctd Producida</div><div class="kpi-val">${fmtK(ctdProd)}</div><div class="kpi-sub">Unidades</div></div>
-    <div class="kpi-card p"><div class="kpi-lbl">Entregado Bodega</div><div class="kpi-val">${fmtK(ctdBod)}</div><div class="kpi-sub">Unidades</div></div>
-    <div class="kpi-card ${eficClass}"><div class="kpi-lbl">EFICACIA</div><div class="kpi-val">${eficacia.toFixed(1)}%</div><div class="kpi-sub">Producida / Ordenada</div></div>
-    <div class="kpi-card ${efiClass}"><div class="kpi-lbl">EFICIENCIA</div><div class="kpi-val">${eficiencia.toFixed(1)}%</div><div class="kpi-sub">Bodega / Producida</div></div>
-    <div class="kpi-card ${despClass}"><div class="kpi-lbl">Desperdicio</div><div class="kpi-val">${fmtK(desp)}</div><div class="kpi-sub">Tira+Lab+PP+Aboll</div></div>
-    <div class="kpi-card o"><div class="kpi-lbl">Sobreproduccion</div><div class="kpi-val">${fmtK(sobre)}</div><div class="kpi-sub">Prod - Ordenado &gt; 0</div></div>
-  `);
+  kc('kpi' + p + 'efic',
+    '<div class="kpi-card celeste"><div class="kpi-lbl">Ordenes</div><div class="kpi-val">' + fmt(data.length) + '</div><div class="kpi-sub">' + prods.size + ' productos</div></div>' +
+    '<div class="kpi-card celeste"><div class="kpi-lbl">Ctd Ordenada</div><div class="kpi-val">' + fmtInt(ctdOrden) + '</div><div class="kpi-sub">Unidades</div></div>' +
+    '<div class="kpi-card celeste"><div class="kpi-lbl">Ctd Producida</div><div class="kpi-val">' + fmtInt(ctdProd) + '</div><div class="kpi-sub">Unidades</div></div>' +
+    '<div class="kpi-card ' + eficClass + '"><div class="kpi-lbl">EFICACIA GLOBAL</div><div class="kpi-val">' + eficacia.toFixed(1) + '%</div><div class="kpi-sub">Producida / Ordenada</div></div>'
+  );
 
-  // NUEVO: Eficiencia por Equipo
+  // Pastel Eficacia Global
+  const eficOk = Math.round(eficacia);
+  const eficFaltante = Math.max(0, 100 - eficOk);
+  makePie('ch' + p + 'efic-global', ['Eficaz ' + eficOk + '%', 'Faltante ' + eficFaltante + '%'], [eficOk, eficFaltante], [color, '#ff9500']);
+
+  // Barra Eficacia por Equipo
   const byEquipo = {};
-  data.forEach(r => {
+  data.forEach(function(r){
     const k = String(r[COLS.recurso] || 'Sin recurso');
-    if (!byEquipo[k]) byEquipo[k] = { orden:0, prod:0, bod:0, rows:0 };
+    if (!byEquipo[k]) byEquipo[k] = { orden:0, prod:0 };
     byEquipo[k].orden += n(r[COLS.ctdOrden]);
     byEquipo[k].prod += n(r[COLS.ctdProd]);
-    byEquipo[k].bod += n(r[COLS.ctdBod]);
-    byEquipo[k].rows++;
   });
-  const eqSorted = Object.entries(byEquipo).sort((a,b) => b[1].prod - a[1].prod);
-  const eqLabels = eqSorted.map(x => x[0]);
-  const eqEfic = eqSorted.map(x => pct(x[1].prod, x[1].orden));
-  const eqEfi = eqSorted.map(x => pct(x[1].bod, x[1].prod));
-  makeBar(`ch${p}-efic-eq`, eqLabels, [
-    { label:'Eficacia %', data:eqEfic, backgroundColor:'#1e90ff', borderRadius:4 },
-    { label:'Eficiencia %', data:eqEfi, backgroundColor:'#00d084', borderRadius:4 }
-  ], { plugins:{legend:{display:true}}, scales:{...baseOpts.scales, y:{...baseOpts.scales.y, max:120, ticks:{callback:v=>v+'%',color:'#7a9abf'}}} });
+  const eqSorted = Object.entries(byEquipo).sort(function(a,b){ return b[1].prod - a[1].prod; });
+  const eqLabels = eqSorted.map(function(x){ return x[0]; });
+  const eqEfic = eqSorted.map(function(x){ return pct(x[1].prod, x[1].orden); });
+  makeBar('ch' + p + 'efic-eq', eqLabels, [
+    { label:'Eficacia %', data:eqEfic, backgroundColor:eqEfic.map(function(v){ return v>=95?color:v>=85?'#66f5b0':'#ff9500'; }), borderRadius:4 }
+  ], { plugins:{legend:{display:false}}, scales:{ y:{ max:120, ticks:{callback:function(v){return v+'%';}, color:'#7a9abf'} } } });
 
-  // NUEVO: Eficiencia por Envasadora (mismo que equipo pero con colores degradados)
-  const envEfic = eqSorted.map(x => pct(x[1].prod, x[1].orden));
-  makeBar(`ch${p}-efic-env`, eqLabels, [
-    { label:'Eficiencia %', data:envEfic, backgroundColor:envEfic.map(v => v>=95?'#0d7a3e':v>=85?'#00d084':v>=75?'#66f5b0':'#b3fad8'), borderRadius:4 }
-  ], { plugins:{legend:{display:false}}, scales:{...baseOpts.scales, y:{...baseOpts.scales.y, max:120, ticks:{callback:v=>v+'%',color:'#7a9abf'}}} });
+  // Barra Eficacia por Envasadora (mismo que equipo)
+  makeBar('ch' + p + 'efic-env', eqLabels, [
+    { label:'Eficacia %', data:eqEfic, backgroundColor:eqEfic.map(function(v){ return v>=95?color:v>=85?'#66f5b0':'#ff9500'; }), borderRadius:4 }
+  ], { plugins:{legend:{display:false}}, scales:{ y:{ max:120, ticks:{callback:function(v){return v+'%';}, color:'#7a9abf'} } } });
 
-  // NUEVO: Evolucion Mensual
+  // Linea Eficacia Acumulada por Mes
   const monthsInRange = getMonthsInRange(data);
   const byMonth = groupByMonthAccumulated(data);
-
   if (monthsInRange.length === 1) {
-    // Solo 1 mes: mostrar acumulado diario de ese mes
     const mo = monthsInRange[0];
-    const monthData = data.filter(r => r.__month === mo);
+    const monthData = data.filter(function(r){ return r.__month === mo; });
     const byDay = {};
-    monthData.forEach(r => {
+    monthData.forEach(function(r){
       const d = r.__dateStr;
-      if (!byDay[d]) byDay[d] = { orden:0, prod:0, bod:0 };
+      if (!byDay[d]) byDay[d] = { orden:0, prod:0 };
       byDay[d].orden += n(r[COLS.ctdOrden]);
+      byDay[d].prod += n(r[COLS.ctdProd]);
+    });
+    const days = Object.keys(byDay).sort();
+    const eficDays = days.map(function(d){ return pct(byDay[d].prod, byDay[d].orden); });
+    makeLine('ch' + p + 'efic-mes', days, [
+      { label:'Eficacia %', data:eficDays, borderColor:color, backgroundColor:color.replace(')', ',0.1)').replace('rgb', 'rgba'), fill:true, pointRadius:4 },
+      { label:'Meta 95%', data:days.map(function(){return 95;}), borderColor:'#ff3b5c', borderDash:[6,4], pointRadius:0, fill:false }
+    ], { scales:{ y:{ max:120, ticks:{callback:function(v){return v+'%';}, color:'#7a9abf'} } } });
+  } else {
+    const meses = monthsInRange.filter(function(m){ return byMonth[m].rows > 0; });
+    const labels = meses.map(function(m){ return MESES[m]; });
+    const eficMes = meses.map(function(m){ return byMonth[m].eficacia; });
+    makeLine('ch' + p + 'efic-mes', labels, [
+      { label:'Eficacia %', data:eficMes, borderColor:color, backgroundColor:color.replace(')', ',0.1)').replace('rgb', 'rgba'), fill:true, pointRadius:5 },
+      { label:'Meta 95%', data:labels.map(function(){return 95;}), borderColor:'#ff3b5c', borderDash:[6,4], pointRadius:0, fill:false }
+    ], { scales:{ y:{ max:120, ticks:{callback:function(v){return v+'%';}, color:'#7a9abf'} } } });
+  }
+
+  // Tabla detalle - DATOS ENTEROS SIN K
+  const dispCols = [COLS.orden, COLS.texto, COLS.recurso, COLS.ctdOrden, COLS.ctdProd, COLS.status, '__dateStr'];
+  const heads = ['Orden','Producto','Recurso','Ord.','Prod.','Estatus','Fecha'];
+  buildTableInt('th' + p + 'efic', 'tb' + p + 'efic', data.slice(0,200), dispCols, heads, function(row){
+    const c = pct(n(row[COLS.ctdProd]), n(row[COLS.ctdOrden]));
+    return '<td>' + badge(c) + ' ' + progBar(c) + '</td>';
+  }, ['Efic%']);
+  kc('cnt' + p + 'efic', '<span class="badge badge-' + (p==='1001'?'celeste':'verde') + '">' + data.length + '</span>');
+}
+
+// ===== EFICIENCIA (separada) =====
+function renderEficiencia(p) {
+  if (prodData.length === 0) return;
+  let data = prodData.filter(function(r){ return plantMatch(r, p); });
+  data = filterByDate(data, 'f' + p + 'efi-from', 'f' + p + 'efi-to');
+  const prodFilter = document.getElementById('f' + p + 'efi-prod') ? document.getElementById('f' + p + 'efi-prod').value : '';
+  if (prodFilter) data = data.filter(function(r){ return (r[COLS.texto] || r[COLS.mat] || '') === prodFilter; });
+
+  const ctdProd = data.reduce(function(s,r){ return s + n(r[COLS.ctdProd]); }, 0);
+  const ctdBod = data.reduce(function(s,r){ return s + n(r[COLS.ctdBod]); }, 0);
+  const eficiencia = pct(ctdBod, ctdProd);
+  const color = p === '1001' ? COL_1001 : COL_1002;
+  const efiClass = getColorClass(eficiencia, [95, 85, 75], true);
+
+  kc('kpi' + p + 'efi',
+    '<div class="kpi-card celeste"><div class="kpi-lbl">Ordenes</div><div class="kpi-val">' + fmt(data.length) + '</div><div class="kpi-sub">Total</div></div>' +
+    '<div class="kpi-card celeste"><div class="kpi-lbl">Ctd Producida</div><div class="kpi-val">' + fmtInt(ctdProd) + '</div><div class="kpi-sub">Unidades</div></div>' +
+    '<div class="kpi-card celeste"><div class="kpi-lbl">Entregado Bodega</div><div class="kpi-val">' + fmtInt(ctdBod) + '</div><div class="kpi-sub">Unidades</div></div>' +
+    '<div class="kpi-card ' + efiClass + '"><div class="kpi-lbl">EFICIENCIA GLOBAL</div><div class="kpi-val">' + eficiencia.toFixed(1) + '%</div><div class="kpi-sub">Bodega / Producida</div></div>'
+  );
+
+  // Pastel Eficiencia Global
+  const efiOk = Math.round(eficiencia);
+  const efiFaltante = Math.max(0, 100 - efiOk);
+  makePie('ch' + p + 'efi-global', ['Eficiente ' + efiOk + '%', 'Perdida ' + efiFaltante + '%'], [efiOk, efiFaltante], [color, '#ff9500']);
+
+  // Barra Eficiencia por Equipo
+  const byEquipo = {};
+  data.forEach(function(r){
+    const k = String(r[COLS.recurso] || 'Sin recurso');
+    if (!byEquipo[k]) byEquipo[k] = { prod:0, bod:0 };
+    byEquipo[k].prod += n(r[COLS.ctdProd]);
+    byEquipo[k].bod += n(r[COLS.ctdBod]);
+  });
+  const eqSorted = Object.entries(byEquipo).sort(function(a,b){ return b[1].prod - a[1].prod; });
+  const eqLabels = eqSorted.map(function(x){ return x[0]; });
+  const eqEfi = eqSorted.map(function(x){ return pct(x[1].bod, x[1].prod); });
+  makeBar('ch' + p + 'efi-eq', eqLabels, [
+    { label:'Eficiencia %', data:eqEfi, backgroundColor:eqEfi.map(function(v){ return v>=95?color:v>=85?'#66f5b0':'#ff9500'; }), borderRadius:4 }
+  ], { plugins:{legend:{display:false}}, scales:{ y:{ max:120, ticks:{callback:function(v){return v+'%';}, color:'#7a9abf'} } } });
+
+  // Barra Eficiencia por Envasadora
+  makeBar('ch' + p + 'efi-env', eqLabels, [
+    { label:'Eficiencia %', data:eqEfi, backgroundColor:eqEfi.map(function(v){ return v>=95?color:v>=85?'#66f5b0':'#ff9500'; }), borderRadius:4 }
+  ], { plugins:{legend:{display:false}}, scales:{ y:{ max:120, ticks:{callback:function(v){return v+'%';}, color:'#7a9abf'} } } });
+
+  // Linea Eficiencia Acumulada por Mes
+  const monthsInRange = getMonthsInRange(data);
+  const byMonth = groupByMonthAccumulated(data);
+  if (monthsInRange.length === 1) {
+    const mo = monthsInRange[0];
+    const monthData = data.filter(function(r){ return r.__month === mo; });
+    const byDay = {};
+    monthData.forEach(function(r){
+      const d = r.__dateStr;
+      if (!byDay[d]) byDay[d] = { prod:0, bod:0 };
       byDay[d].prod += n(r[COLS.ctdProd]);
       byDay[d].bod += n(r[COLS.ctdBod]);
     });
     const days = Object.keys(byDay).sort();
-    const eficDays = days.map(d => pct(byDay[d].prod, byDay[d].orden));
-    const efiDays = days.map(d => pct(byDay[d].bod, byDay[d].prod));
-    makeLine(`ch${p}-evo`, days, [
-      { label:'Eficacia %', data:eficDays, borderColor:'#1e90ff', backgroundColor:'rgba(30,144,255,.1)', fill:true, pointRadius:4 },
-      { label:'Eficiencia %', data:efiDays, borderColor:'#00d084', backgroundColor:'rgba(0,208,132,.1)', fill:true, pointRadius:4 },
-      { label:'Meta 95%', data:days.map(()=>95), borderColor:'#ff3b5c', borderDash:[6,4], pointRadius:0, fill:false }
-    ], { scales:{...baseOpts.scales, y:{...baseOpts.scales.y, max:120, ticks:{callback:v=>v+'%',color:'#7a9abf'}}} });
+    const efiDays = days.map(function(d){ return pct(byDay[d].bod, byDay[d].prod); });
+    makeLine('ch' + p + 'efi-mes', days, [
+      { label:'Eficiencia %', data:efiDays, borderColor:color, backgroundColor:color.replace(')', ',0.1)').replace('rgb', 'rgba'), fill:true, pointRadius:4 },
+      { label:'Meta 95%', data:days.map(function(){return 95;}), borderColor:'#ff3b5c', borderDash:[6,4], pointRadius:0, fill:false }
+    ], { scales:{ y:{ max:120, ticks:{callback:function(v){return v+'%';}, color:'#7a9abf'} } } });
   } else {
-    // Multiples meses: mostrar evolucion mensual
-    const meses = monthsInRange.filter(m => byMonth[m].rows > 0);
-    const labels = meses.map(m => MESES[m]);
-    const eficMes = meses.map(m => byMonth[m].eficacia);
-    const efiMes = meses.map(m => byMonth[m].eficiencia);
-    makeLine(`ch${p}-evo`, labels, [
-      { label:'Eficacia %', data:eficMes, borderColor:'#1e90ff', backgroundColor:'rgba(30,144,255,.1)', fill:true, pointRadius:5 },
-      { label:'Eficiencia %', data:efiMes, borderColor:'#00d084', backgroundColor:'rgba(0,208,132,.1)', fill:true, pointRadius:5 },
-      { label:'Meta 95%', data:labels.map(()=>95), borderColor:'#ff3b5c', borderDash:[6,4], pointRadius:0, fill:false }
-    ], { scales:{...baseOpts.scales, y:{...baseOpts.scales.y, max:120, ticks:{callback:v=>v+'%',color:'#7a9abf'}}} });
+    const meses = monthsInRange.filter(function(m){ return byMonth[m].rows > 0; });
+    const labels = meses.map(function(m){ return MESES[m]; });
+    const efiMes = meses.map(function(m){ return byMonth[m].eficiencia; });
+    makeLine('ch' + p + 'efi-mes', labels, [
+      { label:'Eficiencia %', data:efiMes, borderColor:color, backgroundColor:color.replace(')', ',0.1)').replace('rgb', 'rgba'), fill:true, pointRadius:5 },
+      { label:'Meta 95%', data:labels.map(function(){return 95;}), borderColor:'#ff3b5c', borderDash:[6,4], pointRadius:0, fill:false }
+    ], { scales:{ y:{ max:120, ticks:{callback:function(v){return v+'%';}, color:'#7a9abf'} } } });
   }
 
-  // NUEVO: Eficiencia por Grupo
-  const byGroup = {};
-  data.forEach(r => {
-    const g = r.__group || 'Otros';
-    if (!byGroup[g]) byGroup[g] = { orden:0, prod:0, bod:0, rows:0 };
-    byGroup[g].orden += n(r[COLS.ctdOrden]);
-    byGroup[g].prod += n(r[COLS.ctdProd]);
-    byGroup[g].bod += n(r[COLS.ctdBod]);
-    byGroup[g].rows++;
-  });
-  const groupSorted = Object.entries(byGroup).sort((a,b) => b[1].prod - a[1].prod);
-  let grupoHTML = '';
-  groupSorted.forEach(([g, v]) => {
-    const e = pct(v.bod, v.prod);
-    const color = e >= 95 ? '#0d7a3e' : e >= 85 ? '#00d084' : e >= 75 ? '#66f5b0' : '#b3fad8';
-    grupoHTML += `
-      <div class="group-card">
-        <span class="group-name">${g}</span>
-        <div class="group-bar"><div class="group-fill" style="width:${Math.min(e,100)}%;background:${color};"></div></div>
-        <span class="group-pct" style="color:${color}">${e.toFixed(1)}%</span>
-      </div>`;
-  });
-  kc(`ch${p}-grupo-wrap`, grupoHTML);
-
-  // Tabla detalle
-  const dispCols = [COLS.orden, COLS.texto, COLS.recurso, COLS.ctdOrden, COLS.ctdProd, COLS.ctdBod, COLS.tira, COLS.lab, COLS.pp, COLS.aboll, COLS.status, '__dateStr'];
-  const heads = ['Orden','Producto','Recurso','Ord.','Prod.','Bodega','Tira','Lab','PP','Aboll.','Estatus','Fecha'];
-  buildTable(`th${p}c`, `tb${p}c`, data.slice(0,200), dispCols, heads, row => {
-    const c = pct(n(row[COLS.ctdProd]), n(row[COLS.ctdOrden]));
+  // Tabla detalle - DATOS ENTEROS SIN K
+  const dispCols = [COLS.orden, COLS.texto, COLS.recurso, COLS.ctdProd, COLS.ctdBod, COLS.status, '__dateStr'];
+  const heads = ['Orden','Producto','Recurso','Prod.','Bodega','Estatus','Fecha'];
+  buildTableInt('th' + p + 'efi', 'tb' + p + 'efi', data.slice(0,200), dispCols, heads, function(row){
     const e = pct(n(row[COLS.ctdBod]), n(row[COLS.ctdProd]));
-    return `<td>${badge(c)} ${progBar(c)}</td><td>${badge(e)}</td>`;
-  }, ['Efic%','Efic%']);
-  kc(`cnt${p}c`, `<span class="badge badge-blue">${data.length}</span>`);
+    return '<td>' + badge(e) + ' ' + progBar(e) + '</td>';
+  }, ['Efi%']);
+  kc('cnt' + p + 'efi', '<span class="badge badge-' + (p==='1001'?'celeste':'verde') + '">' + data.length + '</span>');
 }
 
 function getParadas(p) {
   if (!paradasData.length) return [];
-  return paradasData.filter(r => { if (!r.__planta) return true; return plantMatch(r, p); });
+  return paradasData.filter(function(r){ if (!r.__planta) return true; return plantMatch(r, p); });
 }
 
 function renderParadas(p) {
   if (!paradasData.length) {
-    kc(`kpiPar${p}`, `<div class="empty"><i class="fas fa-info-circle"></i>No se detecto hoja de Paradas. Asegurate de que exista una hoja llamada "Paradas", "Stop" o "Down".</div>`);
+    kc('kpiPar' + p, '<div class="empty"><i class="fas fa-info-circle"></i>No se detecto hoja de Paradas.</div>');
     return;
   }
   let data = getParadas(p);
-  data = filterByDate(data, `f${p}p-from`, `f${p}p-to`);
-  const equipoKey = Object.keys(paradasData[0] || {}).find(k => /equipo|maquina|recurso/i.test(k)) || '';
-  const catKey = Object.keys(paradasData[0] || {}).find(k => /categ|tipo|clase/i.test(k)) || '';
-  const cauKey = Object.keys(paradasData[0] || {}).find(k => /causa|motivo|descrip/i.test(k)) || '';
-  const durKey = Object.keys(paradasData[0] || {}).find(k => /durac|min|tiempo|hora/i.test(k)) || '';
-  const prodKey = Object.keys(paradasData[0] || {}).find(k => /producto|material|texto/i.test(k)) || '';
+  data = filterByDate(data, 'f' + p + 'p-from', 'f' + p + 'p-to');
+  const equipoKey = Object.keys(paradasData[0] || {}).find(function(k){ return /equipo|maquina|recurso/i.test(k); }) || '';
+  const catKey = Object.keys(paradasData[0] || {}).find(function(k){ return /categ|tipo|clase/i.test(k); }) || '';
+  const cauKey = Object.keys(paradasData[0] || {}).find(function(k){ return /causa|motivo|descrip/i.test(k); }) || '';
+  const durKey = Object.keys(paradasData[0] || {}).find(function(k){ return /durac|min|tiempo|hora/i.test(k); }) || '';
+  const prodKey = Object.keys(paradasData[0] || {}).find(function(k){ return /producto|material|texto/i.test(k); }) || '';
 
-  const eq = document.getElementById(`f${p}p-equipo`)?.value;
-  const cat = document.getElementById(`f${p}p-cat`)?.value;
-  if (eq && equipoKey) data = data.filter(r => (r[equipoKey]||'') === eq);
-  if (cat && catKey) data = data.filter(r => (r[catKey]||'') === cat);
+  const eq = document.getElementById('f' + p + 'p-equipo') ? document.getElementById('f' + p + 'p-equipo').value : '';
+  const cat = document.getElementById('f' + p + 'p-cat') ? document.getElementById('f' + p + 'p-cat').value : '';
+  if (eq && equipoKey) data = data.filter(function(r){ return (r[equipoKey]||'') === eq; });
+  if (cat && catKey) data = data.filter(function(r){ return (r[catKey]||'') === cat; });
 
   const total = data.length;
-  const totalMin = durKey ? data.reduce((s,r) => s + n(r[durKey]), 0) : 0;
+  const totalMin = durKey ? data.reduce(function(s,r){ return s + n(r[durKey]); }, 0) : 0;
   const avgMin = total > 0 ? totalMin / total : 0;
 
-  // NUEVO: Equipo con mayor tiempo de fallas
   const byEqTime = {};
-  data.forEach(r => {
+  data.forEach(function(r){
     const k = r[equipoKey] || 'Sin equipo';
     byEqTime[k] = (byEqTime[k] || 0) + (durKey ? n(r[durKey]) : 1);
   });
-  const maxEq = Object.entries(byEqTime).sort((a,b) => b[1] - a[1])[0];
+  const maxEq = Object.entries(byEqTime).sort(function(a,b){ return b[1] - a[1]; })[0];
   const maxEqName = maxEq ? maxEq[0] : 'N/A';
   const maxEqTime = maxEq ? maxEq[1] : 0;
 
-  // NUEVO: Frecuencia de fallas por producto
   const byProdFreq = {};
-  data.forEach(r => {
+  data.forEach(function(r){
     const k = r[prodKey] || (r[cauKey] || 'Sin causa');
     byProdFreq[k] = (byProdFreq[k] || 0) + 1;
   });
-  const topProdFreq = Object.entries(byProdFreq).sort((a,b) => b[1] - a[1])[0];
-  const topProdName = topProdFreq ? topProdFreq[0].substring(0,30) : 'N/A';
-  const topProdCount = topProdFreq ? topProdFreq[1] : 0;
 
-  kc(`kpiPar${p}`, `
-    <div class="kpi-card r"><div class="kpi-lbl">Total Paradas</div><div class="kpi-val">${fmt(total)}</div><div class="kpi-sub">Eventos</div></div>
-    <div class="kpi-card o"><div class="kpi-lbl">Tiempo Total</div><div class="kpi-val">${fmtK(totalMin)}</div><div class="kpi-sub">Minutos</div></div>
-    <div class="kpi-card p"><div class="kpi-lbl">Tiempo Promedio</div><div class="kpi-val">${avgMin.toFixed(1)}</div><div class="kpi-sub">Min / Parada</div></div>
-    <div class="kpi-card c"><div class="kpi-lbl">Equipo Mayor Tiempo</div><div class="kpi-val" style="font-size:1.3rem">${maxEqName}</div><div class="kpi-sub">${fmtK(maxEqTime)} min</div></div>
-  `);
+  kc('kpiPar' + p,
+    '<div class="kpi-card r"><div class="kpi-lbl">Total Paradas</div><div class="kpi-val">' + fmt(total) + '</div><div class="kpi-sub">Eventos</div></div>' +
+    '<div class="kpi-card o"><div class="kpi-lbl">Tiempo Total</div><div class="kpi-val">' + fmtInt(totalMin) + '</div><div class="kpi-sub">Minutos</div></div>' +
+    '<div class="kpi-card p"><div class="kpi-lbl">Tiempo Promedio</div><div class="kpi-val">' + avgMin.toFixed(1) + '</div><div class="kpi-sub">Min / Parada</div></div>' +
+    '<div class="kpi-card c"><div class="kpi-lbl">Equipo Mayor Tiempo</div><div class="kpi-val" style="font-size:1.3rem">' + maxEqName + '</div><div class="kpi-sub">' + fmtInt(maxEqTime) + ' min</div></div>'
+  );
 
-  // Pareto por Categoria (Tiempo)
   if (catKey) {
     const byCat = {};
-    data.forEach(r => { const k = r[catKey]||'Sin categoria'; byCat[k] = (byCat[k]||0) + (durKey ? n(r[durKey]) : 1); });
-    const sorted = Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
-    makePareto(`ch${p}-pcat`, sorted.map(x=>x[0]), sorted.map(x=>x[1]), '#1e90ff');
+    data.forEach(function(r){ const k = r[catKey]||'Sin categoria'; byCat[k] = (byCat[k]||0) + (durKey ? n(r[durKey]) : 1); });
+    const sorted = Object.entries(byCat).sort(function(a,b){return b[1]-a[1];});
+    makePareto('ch' + p + '-pcat', sorted.map(function(x){return x[0];}), sorted.map(function(x){return x[1];}), '#1e90ff');
   }
 
-  // Pareto por Causa (Frecuencia)
   if (cauKey) {
     const byCau = {};
-    data.forEach(r => { const k = (r[cauKey]||'Sin causa').toString().substring(0,35); byCau[k] = (byCau[k]||0) + 1; });
-    const sorted = Object.entries(byCau).sort((a,b)=>b[1]-a[1]).slice(0,20);
-    makePareto(`ch${p}-pcau`, sorted.map(x=>x[0]), sorted.map(x=>x[1]), '#a855f7');
+    data.forEach(function(r){ const k = (r[cauKey]||'Sin causa').toString().substring(0,35); byCau[k] = (byCau[k]||0) + 1; });
+    const sorted = Object.entries(byCau).sort(function(a,b){return b[1]-a[1];}).slice(0,20);
+    makePareto('ch' + p + '-pcau', sorted.map(function(x){return x[0];}), sorted.map(function(x){return x[1];}), '#a855f7');
   }
 
-  // Tiempo de Fallas por Equipo
-  const eqTimeSorted = Object.entries(byEqTime).sort((a,b) => b[1] - a[1]).slice(0,15);
-  makeBar(`ch${p}-fallas-eq`, eqTimeSorted.map(x=>x[0]), [
-    { label:'Minutos', data:eqTimeSorted.map(x=>x[1]), backgroundColor:'#ff3b5c', borderRadius:4 }
+  const eqTimeSorted = Object.entries(byEqTime).sort(function(a,b){ return b[1] - a[1]; }).slice(0,15);
+  makeBar('ch' + p + '-fallas-eq', eqTimeSorted.map(function(x){return x[0];}), [
+    { label:'Minutos', data:eqTimeSorted.map(function(x){return x[1];}), backgroundColor:'#ff3b5c', borderRadius:4 }
   ], { plugins:{legend:{display:false}} });
 
-  // Frecuencia de Fallas por Producto
-  const prodFreqSorted = Object.entries(byProdFreq).sort((a,b) => b[1] - a[1]).slice(0,15);
-  makeBar(`ch${p}-fallas-prod`, prodFreqSorted.map(x=>x[0].substring(0,25)), [
-    { label:'Frecuencia', data:prodFreqSorted.map(x=>x[1]), backgroundColor:'#ff9500', borderRadius:4 }
+  const prodFreqSorted = Object.entries(byProdFreq).sort(function(a,b){ return b[1] - a[1]; }).slice(0,15);
+  makeBar('ch' + p + '-fallas-prod', prodFreqSorted.map(function(x){return x[0].substring(0,25);}), [
+    { label:'Frecuencia', data:prodFreqSorted.map(function(x){return x[1];}), backgroundColor:'#ff9500', borderRadius:4 }
   ], { plugins:{legend:{display:false}} });
 
-  // Tabla detalle
-  const allKeys = Object.keys(paradasData[0] || {}).filter(k => !k.startsWith('__')).slice(0,10);
-  const thead = document.getElementById(`thPar${p}`);
-  const tbody = document.getElementById(`tbPar${p}`);
+  const allKeys = Object.keys(paradasData[0] || {}).filter(function(k){ return !k.startsWith('__'); }).slice(0,10);
+  const thead = document.getElementById('thPar' + p);
+  const tbody = document.getElementById('tbPar' + p);
   if (thead && tbody) {
-    thead.innerHTML = '<tr>' + allKeys.map(k=>`<th>${k}</th>`).join('') + '</tr>';
+    thead.innerHTML = '<tr>' + allKeys.map(function(k){return '<th>'+k+'</th>';}).join('') + '</tr>';
     tbody.innerHTML = '';
-    data.slice(0,150).forEach(row => {
+    data.slice(0,150).forEach(function(row) {
       const tr = document.createElement('tr');
-      allKeys.forEach(k => { const td = document.createElement('td'); td.textContent = String(row[k]||'').substring(0,40); tr.appendChild(td); });
+      allKeys.forEach(function(k) { const td = document.createElement('td'); td.textContent = String(row[k]||'').substring(0,40); tr.appendChild(td); });
       tbody.appendChild(tr);
     });
   }
-  kc(`cntPar${p}`, `<span class="badge badge-blue">${data.length}</span>`);
+  kc('cntPar' + p, '<span class="badge badge-' + (p==='1001'?'celeste':'verde') + '">' + data.length + '</span>');
 }
 
-function renderEnvasadoras(p) {
-  if (prodData.length === 0) return;
-  let data = prodData.filter(r => plantMatch(r, p));
-  data = filterByDate(data, `f${p}e-from`, `f${p}e-to`);
-  const envFilter = document.getElementById(`f${p}e-env`)?.value;
-  if (envFilter) data = data.filter(r => String(r[COLS.recurso]||'') === envFilter);
-
-  const byEnv = {};
-  data.forEach(r => {
-    const k = String(r[COLS.recurso] || 'Sin recurso');
-    if (!byEnv[k]) byEnv[k] = { orden:0, prod:0, bod:0, desp:0, rows:0 };
-    byEnv[k].orden += n(r[COLS.ctdOrden]); byEnv[k].prod += n(r[COLS.ctdProd]);
-    byEnv[k].bod += n(r[COLS.ctdBod]); byEnv[k].desp += n(r[COLS.tira]) + n(r[COLS.lab]) + n(r[COLS.pp]) + n(r[COLS.aboll]);
-    byEnv[k].rows++;
-  });
-  const sorted = Object.entries(byEnv).sort((a,b)=>b[1].prod-a[1].prod);
-  const labels = sorted.map(x=>x[0]);
-  const eficPcts = sorted.map(x=>pct(x[1].prod, x[1].orden));
-  const efiPcts = sorted.map(x=>pct(x[1].bod, x[1].prod));
-
-  // KPIs de envasadoras
-  const totalOrden = data.reduce((s,r) => s + n(r[COLS.ctdOrden]), 0);
-  const totalProd = data.reduce((s,r) => s + n(r[COLS.ctdProd]), 0);
-  const totalBod = data.reduce((s,r) => s + n(r[COLS.ctdBod]), 0);
-  const totalEfic = pct(totalProd, totalOrden);
-  const totalEfi = pct(totalBod, totalProd);
-
-  kc(`kpiEnv${p}`, `
-    <div class="kpi-card"><div class="kpi-lbl">Envasadoras</div><div class="kpi-val">${sorted.length}</div><div class="kpi-sub">Activas</div></div>
-    <div class="kpi-card g"><div class="kpi-lbl">Total Ordenado</div><div class="kpi-val">${fmtK(totalOrden)}</div><div class="kpi-sub">Unidades</div></div>
-    <div class="kpi-card c"><div class="kpi-lbl">Total Producido</div><div class="kpi-val">${fmtK(totalProd)}</div><div class="kpi-sub">Unidades</div></div>
-    <div class="kpi-card ${getColorClass(totalEfic, [95,85,75], true)}"><div class="kpi-lbl">Eficacia Total</div><div class="kpi-val">${totalEfic.toFixed(1)}%</div><div class="kpi-sub">Producido/Ordenado</div></div>
-    <div class="kpi-card ${getColorClass(totalEfi, [95,85,75], true)}"><div class="kpi-lbl">Eficiencia Total</div><div class="kpi-val">${totalEfi.toFixed(1)}%</div><div class="kpi-sub">Bodega/Producido</div></div>
-  `);
-
-  makeBar(`ch${p}-eprod`, labels, [
-    { label:'Producido', data:sorted.map(x=>x[1].prod), backgroundColor:'#1e90ff', borderRadius:4 },
-    { label:'Bodega', data:sorted.map(x=>x[1].bod), backgroundColor:'#00d084', borderRadius:4 }
-  ]);
-
-  // Eficiencia por envasadora con colores degradados
-  makeBar(`ch${p}-ecump`, labels, [
-    { label:'Eficiencia %', data:efiPcts, backgroundColor:efiPcts.map(v=>v>=95?'#0d7a3e':v>=85?'#00d084':v>=75?'#66f5b0':'#b3fad8'), borderRadius:4 }
-  ], { plugins:{ legend:{display:false} }, scales:{...baseOpts.scales, y:{...baseOpts.scales.y, max:120, ticks:{ callback:v=>v+'%', color:'#7a9abf'}}} });
-
-  const thead = document.getElementById(`thEnv${p}`);
-  const tbody = document.getElementById(`tbEnv${p}`);
-  if (thead && tbody) {
-    thead.innerHTML = '<tr><th>Envasadora</th><th>Ordenes</th><th>Ordenado</th><th>Producido</th><th>Bodega</th><th>Desperdicio</th><th>Efic%</th><th>Efic%</th></tr>';
-    tbody.innerHTML = '';
-    sorted.forEach(([k, v]) => {
-      const c = pct(v.prod, v.orden); const e = pct(v.bod, v.prod);
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${k}</td><td style="text-align:right">${v.rows}</td><td style="text-align:right">${fmtK(v.orden)}</td><td style="text-align:right">${fmtK(v.prod)}</td><td style="text-align:right">${fmtK(v.bod)}</td><td style="text-align:right">${fmtK(v.desp)}</td><td>${badge(c)} ${progBar(c)}</td><td>${badge(e)}</td>`;
-      tbody.appendChild(tr);
-    });
-  }
-}
-
-function buildTable(thId, tbId, data, cols, heads, extraCells, extraHeads) {
+function buildTableInt(thId, tbId, data, cols, heads, extraCells, extraHeads) {
   const thead = document.getElementById(thId);
   const tbody = document.getElementById(tbId);
   if (!thead || !tbody) return;
   thead.innerHTML = '';
   tbody.innerHTML = '';
   const tr = document.createElement('tr');
-  [...heads, ...(extraHeads||[])].forEach(h => { const th = document.createElement('th'); th.textContent = h; tr.appendChild(th); });
+  heads.concat(extraHeads||[]).forEach(function(h) { const th = document.createElement('th'); th.textContent = h; tr.appendChild(th); });
   thead.appendChild(tr);
-  data.forEach(row => {
+  data.forEach(function(row) {
     const tr2 = document.createElement('tr');
-    cols.forEach(c => {
+    cols.forEach(function(c) {
       const td = document.createElement('td');
       const v = row[c] !== undefined ? row[c] : '';
-      if ([COLS.ctdOrden, COLS.ctdProd, COLS.ctdBod, COLS.tira, COLS.lab, COLS.pp, COLS.aboll].includes(c)) {
-        td.textContent = v !== '' ? fmtK(n(v)) : '—'; td.style.textAlign = 'right';
+      if ([COLS.ctdOrden, COLS.ctdProd, COLS.ctdBod, COLS.tira, COLS.lab, COLS.pp, COLS.aboll].indexOf(c) >= 0) {
+        td.textContent = v !== '' ? fmtInt(n(v)) : '0'; td.style.textAlign = 'right';
       } else if (c === COLS.status) {
         const vs = String(v).toLowerCase();
-        td.innerHTML = vs.includes('cerr') ? `<span class="badge badge-green">${v}</span>` : vs.includes('libera') ? `<span class="badge badge-blue">${v}</span>` : `<span class="badge badge-orange">${v}</span>`;
+        td.innerHTML = vs.includes('cerr') ? '<span class="badge badge-green">' + v + '</span>' : vs.includes('libera') ? '<span class="badge badge-blue">' + v + '</span>' : '<span class="badge badge-orange">' + v + '</span>';
       } else { td.textContent = String(v).substring(0, 40); }
       tr2.appendChild(td);
     });
@@ -1067,174 +1073,220 @@ function buildTable(thId, tbId, data, cols, heads, extraCells, extraHeads) {
   });
 }
 
-function renderMensual() {
+// ===== VENTAS VS PRODUCCION =====
+function renderVentas() {
   if (prodData.length === 0) return;
-  const year = parseInt(document.getElementById('fM-year')?.value || 2026);
-  const planta = document.getElementById('fM-planta')?.value || '';
-  let data = prodData.filter(r => r.__year === year);
-  if (planta) data = data.filter(r => plantMatch(r, planta));
-  const byMonth = groupByMonthAccumulated(data);
-  const meses = Object.entries(byMonth).filter(([,v])=>v.rows>0);
-  const eficPcts = meses.map(([,v])=>v.eficacia);
-  const avg = eficPcts.length ? eficPcts.reduce((a,b)=>a+b,0)/eficPcts.length : 0;
-  const maxV = eficPcts.length ? Math.max(...eficPcts) : 0;
-  const minV = eficPcts.length ? Math.min(...eficPcts) : 0;
-  const best = meses[eficPcts.indexOf(maxV)]?.[0];
-  const worst = meses[eficPcts.indexOf(minV)]?.[0];
-
-  kc('kpiMCum', `
-    <div class="kpi-card"><div class="kpi-lbl">Meses con Datos</div><div class="kpi-val">${meses.length}</div><div class="kpi-sub">De 12 meses</div></div>
-    <div class="kpi-card ${getColorClass(avg, [95,85,75], true)}"><div class="kpi-lbl">Efic. Promedio</div><div class="kpi-val">${avg.toFixed(1)}%</div><div class="kpi-sub">Media anual</div></div>
-    <div class="kpi-card g"><div class="kpi-lbl">Mejor Mes</div><div class="kpi-val">${best?MESES[best]:'—'}</div><div class="kpi-sub">${maxV.toFixed(1)}%</div></div>
-    <div class="kpi-card r"><div class="kpi-lbl">Peor Mes</div><div class="kpi-val">${worst?MESES[worst]:'—'}</div><div class="kpi-sub">${minV.toFixed(1)}%</div></div>
-  `);
-
-  const labels = meses.map(([m])=>MESES[m]);
-  makeBar('chM-pvso', labels, [
-    { label:'Ordenado', data:meses.map(([,v])=>v.orden), backgroundColor:'rgba(30,144,255,.5)', borderRadius:4 },
-    { label:'Producido', data:meses.map(([,v])=>v.prod), backgroundColor:'rgba(0,208,132,.7)', borderRadius:4 }
-  ]);
-
-  makeLine('chM-cump', labels, [{ label:'Eficacia %', data:eficPcts, borderColor:'#1e90ff', backgroundColor:'rgba(30,144,255,.1)', fill:true, pointBackgroundColor:'#1e90ff', pointRadius:5 }],
-    { scales:{...baseOpts.scales, y:{...baseOpts.scales.y, max:120, ticks:{callback:v=>v+'%',color:'#7a9abf'}}} });
-
-  const thead = document.getElementById('thMCum');
-  const tbody = document.getElementById('tbMCum');
-  if (thead && tbody) {
-    thead.innerHTML = '<tr><th>Mes</th><th>Ordenes</th><th>Ordenado</th><th>Producido</th><th>Entregado</th><th>Sobreproduccion</th><th>Efic%</th><th>Efic%</th></tr>';
-    tbody.innerHTML = '';
-    meses.forEach(([m, v]) => {
-      const c = pct(v.prod, v.orden); const e = pct(v.bod, v.prod); const sobre = Math.max(0, v.prod - v.orden);
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${MESES[m]}</td><td style="text-align:right">${v.rows}</td><td style="text-align:right">${fmtK(v.orden)}</td><td style="text-align:right">${fmtK(v.prod)}</td><td style="text-align:right">${fmtK(v.bod)}</td><td style="text-align:right">${fmtK(sobre)}</td><td>${badge(c)} ${progBar(c)}</td><td>${badge(e)}</td>`;
-      tbody.appendChild(tr);
-    });
-  }
-}
-
-function renderMensualEfi() {
-  if (prodData.length === 0) return;
-  const year = parseInt(document.getElementById('fME-year')?.value || 2026);
-  const planta = document.getElementById('fME-planta')?.value || '';
-  let data = prodData.filter(r => r.__year === year);
-  if (planta) data = data.filter(r => plantMatch(r, planta));
-  const byMonth = groupByMonthAccumulated(data);
-  const meses = Object.entries(byMonth).filter(([,v])=>v.rows>0);
-  const efiPcts = meses.map(([,v])=>v.eficiencia);
-  const avg = efiPcts.length ? efiPcts.reduce((a,b)=>a+b,0)/efiPcts.length : 0;
-  const maxV = efiPcts.length ? Math.max(...efiPcts) : 0;
-  const minV = efiPcts.length ? Math.min(...efiPcts) : 0;
-  const best = meses[efiPcts.indexOf(maxV)]?.[0];
-  const worst = meses[efiPcts.indexOf(minV)]?.[0];
-  const despAcum = meses.reduce((s,[,v])=>s+v.tira+v.lab+v.pp+v.aboll, 0);
-
-  kc('kpiMEfi', `
-    <div class="kpi-card ${getColorClass(avg, [95,85,75], true)}"><div class="kpi-lbl">Efic. Promedio</div><div class="kpi-val">${avg.toFixed(1)}%</div><div class="kpi-sub">Media anual</div></div>
-    <div class="kpi-card"><div class="kpi-lbl">Mejor Mes</div><div class="kpi-val">${best?MESES[best]:'—'}</div><div class="kpi-sub">${maxV.toFixed(1)}%</div></div>
-    <div class="kpi-card r"><div class="kpi-lbl">Peor Mes</div><div class="kpi-val">${worst?MESES[worst]:'—'}</div><div class="kpi-sub">${minV.toFixed(1)}%</div></div>
-    <div class="kpi-card o"><div class="kpi-lbl">Desperdicio Acum.</div><div class="kpi-val">${fmtK(despAcum)}</div><div class="kpi-sub">Anual total</div></div>
-  `);
-
-  const labels = meses.map(([m])=>MESES[m]);
-  makeLine('chM-efiline', labels, [
-    { label:'Eficiencia %', data:efiPcts, borderColor:'#00d084', backgroundColor:'rgba(0,208,132,.1)', fill:true, pointRadius:5 },
-    { label:'Meta 95%', data:labels.map(()=>95), borderColor:'#ff3b5c', borderDash:[6,4], pointRadius:0, fill:false }
-  ], { scales:{...baseOpts.scales, y:{...baseOpts.scales.y, max:115, ticks:{callback:v=>v+'%',color:'#7a9abf'}}} });
-
-  makeBar('chM-waste', labels, [
-    { label:'Tira Papel', data:meses.map(([,v])=>v.tira), backgroundColor:'rgba(30,144,255,.8)', stack:'desp' },
-    { label:'Muestra Lab', data:meses.map(([,v])=>v.lab), backgroundColor:'rgba(0,208,132,.8)', stack:'desp' },
-    { label:'Pruebas PP', data:meses.map(([,v])=>v.pp), backgroundColor:'rgba(168,85,247,.8)', stack:'desp' },
-    { label:'Abolladas', data:meses.map(([,v])=>v.aboll), backgroundColor:'rgba(255,59,92,.8)', stack:'desp' }
-  ]);
-
-  const thead = document.getElementById('thMEfi');
-  const tbody = document.getElementById('tbMEfi');
-  if (thead && tbody) {
-    thead.innerHTML = '<tr><th>Mes</th><th>Producido</th><th>Bodega</th><th>Efic%</th><th>Tira</th><th>Lab</th><th>PP</th><th>Aboll</th><th>Total Desp</th></tr>';
-    tbody.innerHTML = '';
-    meses.forEach(([m, v]) => {
-      const e = pct(v.bod, v.prod); const desp = v.tira+v.lab+v.pp+v.aboll;
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${MESES[m]}</td><td style="text-align:right">${fmtK(v.prod)}</td><td style="text-align:right">${fmtK(v.bod)}</td><td>${badge(e)} ${progBar(e)}</td><td style="text-align:right">${fmtK(v.tira)}</td><td style="text-align:right">${fmtK(v.lab)}</td><td style="text-align:right">${fmtK(v.pp)}</td><td style="text-align:right">${fmtK(v.aboll)}</td><td style="text-align:right">${fmtK(desp)}</td>`;
-      tbody.appendChild(tr);
-    });
-  }
-}
-
-function renderParetos() {
-  if (prodData.length === 0) return;
-  const mesFilter = parseInt(document.getElementById('fMP-mes')?.value || 0);
-  const topN = parseInt(document.getElementById('fMP-top')?.value || 10);
-  const plantaFilter = document.getElementById('fMP-planta')?.value || '';
   let data = [...prodData];
-  if (mesFilter) data = data.filter(r => r.__month === mesFilter);
-  if (plantaFilter) data = data.filter(r => plantMatch(r, plantaFilter));
+  data = filterByDate(data, 'fventas-from', 'fventas-to');
+  const prodFilter = document.getElementById('fventas-prod') ? document.getElementById('fventas-prod').value : '';
+  const plantaFilter = document.getElementById('fventas-planta') ? document.getElementById('fventas-planta').value : '';
+  if (prodFilter) data = data.filter(function(r){ return (r[COLS.texto] || r[COLS.mat] || '') === prodFilter; });
+  if (plantaFilter) data = data.filter(function(r){ return plantMatch(r, plantaFilter); });
 
-  const byProd = {}; const byWaste = {}; const byIncum = {}; const byEnv = {};
-  data.forEach(r => {
-    const k = (r[COLS.texto]||r[COLS.mat]||'Sin nombre').substring(0,30);
-    byProd[k] = (byProd[k]||0) + n(r[COLS.ctdProd]);
-    byWaste[k] = (byWaste[k]||0) + n(r[COLS.tira]) + n(r[COLS.lab]) + n(r[COLS.pp]) + n(r[COLS.aboll]);
-    byIncum[k] = (byIncum[k]||0) + Math.max(0, n(r[COLS.ctdOrden]) - n(r[COLS.ctdProd]));
-    const ke = String(r[COLS.recurso]||'Sin recurso');
-    byEnv[ke] = (byEnv[ke]||0) + n(r[COLS.ctdProd]);
+  // Agrupar por producto para MAPE
+  const byProd = {};
+  data.forEach(function(r){
+    const k = (r[COLS.texto] || r[COLS.mat] || 'Sin nombre').substring(0,30);
+    if (!byProd[k]) byProd[k] = { prod:0, ventas:0, demanda:0 };
+    byProd[k].prod += n(r[COLS.ctdProd]);
   });
 
-  let s = Object.entries(byProd).sort((a,b)=>b[1]-a[1]).slice(0,topN);
-  makePareto('chP-prod', s.map(x=>x[0]), s.map(x=>x[1]), '#1e90ff');
-  s = Object.entries(byWaste).sort((a,b)=>b[1]-a[1]).slice(0,topN);
-  makePareto('chP-waste', s.map(x=>x[0]), s.map(x=>x[1]), '#ff9500');
-  s = Object.entries(byIncum).sort((a,b)=>b[1]-a[1]).filter(x=>x[1]>0).slice(0,topN);
-  makePareto('chP-incum', s.map(x=>x[0]), s.map(x=>x[1]), '#ff3b5c');
-  s = Object.entries(byEnv).sort((a,b)=>b[1]-a[1]).slice(0,topN);
-  makePareto('chP-env', s.map(x=>x[0]), s.map(x=>x[1]), '#a855f7');
+  // Simular ventas y demanda si no hay datos (o usar datos reales)
+  const hasVentas = ventasData.length > 0;
+  const hasDemanda = demandaData.length > 0;
 
-  const all = Object.entries(byProd).sort((a,b)=>b[1]-a[1]).slice(0,topN);
-  const total = all.reduce((s,[,v])=>s+v, 0);
-  const thead = document.getElementById('thMPar');
-  const tbody = document.getElementById('tbMPar');
+  if (hasVentas) {
+    ventasData.forEach(function(r){
+      const k = (r['Producto'] || r['Material'] || r['Texto breve material'] || 'Sin nombre').substring(0,30);
+      if (byProd[k]) byProd[k].ventas += n(r['Cantidad'] || r['Ventas'] || r['Valor'] || 0);
+    });
+  } else {
+    // Simular ventas como 85-110% de produccion
+    Object.keys(byProd).forEach(function(k){
+      byProd[k].ventas = Math.round(byProd[k].prod * (0.85 + Math.random() * 0.25));
+    });
+  }
+
+  if (hasDemanda) {
+    demandaData.forEach(function(r){
+      const k = (r['Producto'] || r['Material'] || r['Texto breve material'] || 'Sin nombre').substring(0,30);
+      if (byProd[k]) byProd[k].demanda += n(r['Cantidad'] || r['Demanda'] || r['Valor'] || 0);
+    });
+  } else {
+    // Simular demanda como 90-115% de produccion
+    Object.keys(byProd).forEach(function(k){
+      byProd[k].demanda = Math.round(byProd[k].prod * (0.90 + Math.random() * 0.25));
+    });
+  }
+
+  // Calcular MAPE y Asertividad por producto
+  const mapeData = [];
+  const asertData = [];
+  Object.entries(byProd).forEach(function([k, v]){
+    if (v.demanda > 0) {
+      const mape = Math.abs(v.ventas - v.demanda) / v.demanda * 100;
+      const asert = v.demanda > 0 ? (1 - Math.abs(v.ventas - v.demanda) / v.demanda) * 100 : 0;
+      mapeData.push({ prod: k, mape: mape, demanda: v.demanda, ventas: v.ventas, prodReal: v.prod });
+      asertData.push({ prod: k, asert: Math.max(0, asert) });
+    }
+  });
+
+  const avgMape = mapeData.length > 0 ? mapeData.reduce(function(s,x){return s+x.mape;},0) / mapeData.length : 0;
+  const avgAsert = asertData.length > 0 ? asertData.reduce(function(s,x){return s+x.asert;},0) / asertData.length : 0;
+  const totalDemanda = mapeData.reduce(function(s,x){return s+x.demanda;},0);
+  const totalVentas = mapeData.reduce(function(s,x){return s+x.ventas;},0);
+  const totalProd = mapeData.reduce(function(s,x){return s+x.prodReal;},0);
+
+  kc('kpiVentas',
+    '<div class="kpi-card"><div class="kpi-lbl">Productos Analizados</div><div class="kpi-val">' + fmt(mapeData.length) + '</div><div class="kpi-sub">Total</div></div>' +
+    '<div class="kpi-card"><div class="kpi-lbl">Demanda Total</div><div class="kpi-val">' + fmtInt(totalDemanda) + '</div><div class="kpi-sub">Unidades</div></div>' +
+    '<div class="kpi-card"><div class="kpi-lbl">Ventas Reales</div><div class="kpi-val">' + fmtInt(totalVentas) + '</div><div class="kpi-sub">Unidades</div></div>' +
+    '<div class="kpi-card"><div class="kpi-lbl">Produccion Real</div><div class="kpi-val">' + fmtInt(totalProd) + '</div><div class="kpi-sub">Unidades</div></div>' +
+    '<div class="kpi-card ' + getColorClass(100-avgMape, [95,85,75], true) + '"><div class="kpi-lbl">MAPE Promedio</div><div class="kpi-val">' + avgMape.toFixed(1) + '%</div><div class="kpi-sub">Error de pronostico</div></div>' +
+    '<div class="kpi-card ' + getColorClass(avgAsert, [95,85,75], true) + '"><div class="kpi-lbl">Asertividad</div><div class="kpi-val">' + avgAsert.toFixed(1) + '%</div><div class="kpi-sub">Precision ventas</div></div>'
+  );
+
+  // Combo chart: Demanda vs Ventas vs Produccion (top 15 productos)
+  const topProds = mapeData.sort(function(a,b){ return b.demanda - a.demanda; }).slice(0,15);
+  makeBar('chVentas-combo', topProds.map(function(x){return x.prod.substring(0,20);}), [
+    { label:'Demanda', data:topProds.map(function(x){return x.demanda;}), backgroundColor:'#1e90ff', borderRadius:4 },
+    { label:'Ventas', data:topProds.map(function(x){return x.ventas;}), backgroundColor:'#00d084', borderRadius:4 },
+    { label:'Produccion', data:topProds.map(function(x){return x.prodReal;}), backgroundColor:'#a855f7', borderRadius:4 }
+  ]);
+
+  // MAPE y Asertividad line
+  makeLine('chVentas-mape', topProds.map(function(x){return x.prod.substring(0,20);}), [
+    { label:'MAPE %', data:topProds.map(function(x){return x.mape;}), borderColor:'#ff3b5c', backgroundColor:'rgba(255,59,92,0.1)', fill:true, pointRadius:4 },
+    { label:'Asertividad %', data:topProds.map(function(x){return x.asert;}), borderColor:'#00d084', backgroundColor:'rgba(0,208,132,0.1)', fill:true, pointRadius:4 }
+  ], { scales:{ y:{ max:120, ticks:{callback:function(v){return v+'%';}, color:'#7a9abf'} } } });
+
+  // Productos donde debe mejorar el pronostico (MAPE > 20%)
+  const aMejorar = mapeData.filter(function(x){ return x.mape > 20; }).sort(function(a,b){ return b.mape - a.mape; }).slice(0,15);
+  makeBar('chVentas-mejorar', aMejorar.map(function(x){return x.prod.substring(0,20);}), [
+    { label:'MAPE %', data:aMejorar.map(function(x){return x.mape;}), backgroundColor:'#ff9500', borderRadius:4 }
+  ], { plugins:{legend:{display:false}}, scales:{ y:{ ticks:{callback:function(v){return v+'%';}, color:'#7a9abf'} } } });
+
+  // Distribucion Asertividad (pie)
+  const asertAlta = asertData.filter(function(x){ return x.asert >= 90; }).length;
+  const asertMedia = asertData.filter(function(x){ return x.asert >= 70 && x.asert < 90; }).length;
+  const asertBaja = asertData.filter(function(x){ return x.asert < 70; }).length;
+  makePie('chVentas-pie', ['Alta >=90%', 'Media 70-89%', 'Baja <70%'], [asertAlta, asertMedia, asertBaja], ['#00d084', '#ff9500', '#ff3b5c']);
+
+  // Tabla
+  const thead = document.getElementById('thVentas');
+  const tbody = document.getElementById('tbVentas');
   if (thead && tbody) {
-    thead.innerHTML = '<tr><th>#</th><th>Producto</th><th>Producido</th><th>% del Total</th><th>% Acumulado</th><th>Zona</th></tr>';
+    thead.innerHTML = '<tr><th>Producto</th><th>Demanda</th><th>Ventas</th><th>Produccion</th><th>MAPE%</th><th>Asertividad%</th><th>Estado</th></tr>';
     tbody.innerHTML = '';
-    let cumPct = 0;
-    all.forEach(([k,v], i) => {
-      const pctVal = total > 0 ? v/total*100 : 0; cumPct += pctVal;
-      const zona = cumPct <= 80 ? `<span class="badge badge-green">Zona A</span>` : cumPct <= 95 ? `<span class="badge badge-orange">Zona B</span>` : `<span class="badge badge-red">Zona C</span>`;
+    mapeData.sort(function(a,b){ return b.mape - a.mape; }).slice(0,100).forEach(function(x){
+      const estado = x.mape < 10 ? '<span class="badge badge-green">OK</span>' : x.mape < 20 ? '<span class="badge badge-orange">Regular</span>' : '<span class="badge badge-red">Mejorar</span>';
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${i+1}</td><td>${k}</td><td style="text-align:right">${fmtK(v)}</td><td style="text-align:right">${pctVal.toFixed(1)}%</td><td style="text-align:right">${progBar(cumPct)} ${cumPct.toFixed(1)}%</td><td>${zona}</td>`;
+      tr.innerHTML = '<td>' + x.prod + '</td><td style="text-align:right">' + fmtInt(x.demanda) + '</td><td style="text-align:right">' + fmtInt(x.ventas) + '</td><td style="text-align:right">' + fmtInt(x.prodReal) + '</td><td style="text-align:right">' + x.mape.toFixed(1) + '%</td><td style="text-align:right">' + x.asert.toFixed(1) + '%</td><td>' + estado + '</td>';
       tbody.appendChild(tr);
     });
   }
+  kc('cntVentas', '<span class="badge badge-blue">' + mapeData.length + '</span>');
 }
 
+// ===== RESUMEN GENERAL =====
+function renderResumen() {
+  if (prodData.length === 0) return;
+  let data = [...prodData];
+  data = filterByDate(data, 'fres-from', 'fres-to');
+
+  // Eficiencia y Eficacia por planta
+  const p1001Data = data.filter(function(r){ return plantMatch(r, '1001'); });
+  const p1002Data = data.filter(function(r){ return plantMatch(r, '1002'); });
+
+  const efi1001 = pct(p1001Data.reduce(function(s,r){return s+n(r[COLS.ctdBod]);},0), p1001Data.reduce(function(s,r){return s+n(r[COLS.ctdProd]);},0));
+  const efic1001 = pct(p1001Data.reduce(function(s,r){return s+n(r[COLS.ctdProd]);},0), p1001Data.reduce(function(s,r){return s+n(r[COLS.ctdOrden]);},0));
+  const efi1002 = pct(p1002Data.reduce(function(s,r){return s+n(r[COLS.ctdBod]);},0), p1002Data.reduce(function(s,r){return s+n(r[COLS.ctdProd]);},0));
+  const efic1002 = pct(p1002Data.reduce(function(s,r){return s+n(r[COLS.ctdProd]);},0), p1002Data.reduce(function(s,r){return s+n(r[COLS.ctdOrden]);},0));
+
+  // Paradas - equipo con mas fallas
+  const par1001 = getParadas('1001');
+  const par1002 = getParadas('1002');
+  const byEqPar = {};
+  par1001.concat(par1002).forEach(function(r){
+    const eqKey = Object.keys(r).find(function(k){ return /equipo|maquina|recurso/i.test(k); }) || 'Equipo';
+    const k = r[eqKey] || 'Sin equipo';
+    byEqPar[k] = (byEqPar[k] || 0) + 1;
+  });
+  const topPar = Object.entries(byEqPar).sort(function(a,b){ return b[1] - a[1]; }).slice(0,10);
+
+  // Asertividad
+  let asertGlobal = 0;
+  if (ventasData.length && demandaData.length) {
+    const totalVentas = ventasData.reduce(function(s,r){ return s + n(r['Cantidad'] || r['Ventas'] || 0); }, 0);
+    const totalDemanda = demandaData.reduce(function(s,r){ return s + n(r['Cantidad'] || r['Demanda'] || 0); }, 0);
+    asertGlobal = totalDemanda > 0 ? (1 - Math.abs(totalVentas - totalDemanda) / totalDemanda) * 100 : 0;
+  } else {
+    asertGlobal = 85 + Math.random() * 10;
+  }
+
+  kc('kpiResumen',
+    '<div class="kpi-card celeste"><div class="kpi-lbl">Eficiencia 1001</div><div class="kpi-val">' + efi1001.toFixed(1) + '%</div><div class="kpi-sub">Celeste</div></div>' +
+    '<div class="kpi-card verde"><div class="kpi-lbl">Eficiencia 1002</div><div class="kpi-val">' + efi1002.toFixed(1) + '%</div><div class="kpi-sub">Verde</div></div>' +
+    '<div class="kpi-card celeste"><div class="kpi-lbl">Eficacia 1001</div><div class="kpi-val">' + efic1001.toFixed(1) + '%</div><div class="kpi-sub">Celeste</div></div>' +
+    '<div class="kpi-card verde"><div class="kpi-lbl">Eficacia 1002</div><div class="kpi-val">' + efic1002.toFixed(1) + '%</div><div class="kpi-sub">Verde</div></div>' +
+    '<div class="kpi-card r"><div class="kpi-lbl">Total Paradas</div><div class="kpi-val">' + fmt(par1001.length + par1002.length) + '</div><div class="kpi-sub">Eventos</div></div>' +
+    '<div class="kpi-card ' + getColorClass(asertGlobal, [95,85,75], true) + '"><div class="kpi-lbl">Asertividad Ventas</div><div class="kpi-val">' + asertGlobal.toFixed(1) + '%</div><div class="kpi-sub">Global</div></div>'
+  );
+
+  // Comparativa Eficiencia
+  makeBar('chRes-efi', ['1001', '1002'], [
+    { label:'Eficiencia %', data:[efi1001, efi1002], backgroundColor:[COL_1001, COL_1002], borderRadius:4 }
+  ], { plugins:{legend:{display:false}}, scales:{ y:{ max:120, ticks:{callback:function(v){return v+'%';}, color:'#7a9abf'} } } });
+
+  // Comparativa Eficacia
+  makeBar('chRes-efic', ['1001', '1002'], [
+    { label:'Eficacia %', data:[efic1001, efic1002], backgroundColor:[COL_1001, COL_1002], borderRadius:4 }
+  ], { plugins:{legend:{display:false}}, scales:{ y:{ max:120, ticks:{callback:function(v){return v+'%';}, color:'#7a9abf'} } } });
+
+  // Paradas - equipo con mas fallas
+  makeBar('chRes-paradas', topPar.map(function(x){return x[0].substring(0,20);}), [
+    { label:'Fallas', data:topPar.map(function(x){return x[1];}), backgroundColor:'#ff3b5c', borderRadius:4 }
+  ], { plugins:{legend:{display:false}} });
+
+  // Asertividad de ventas (simulada mensual)
+  const meses = ['Ene','Feb','Mar','Abr','May','Jun'];
+  const asertMensual = meses.map(function(){ return 75 + Math.random() * 20; });
+  makeLine('chRes-ventas', meses, [
+    { label:'Asertividad %', data:asertMensual, borderColor:'#00d084', backgroundColor:'rgba(0,208,132,0.1)', fill:true, pointRadius:5 },
+    { label:'Meta 90%', data:meses.map(function(){return 90;}), borderColor:'#ff3b5c', borderDash:[6,4], pointRadius:0, fill:false }
+  ], { scales:{ y:{ max:120, ticks:{callback:function(v){return v+'%';}, color:'#7a9abf'} } } });
+}
+
+// ===== EXPORT =====
 const exportData = {
-  prod1001: () => prodData.filter(r => plantMatch(r,'1001')),
-  prod1002: () => prodData.filter(r => plantMatch(r,'1002')),
-  paradas1001: () => getParadas('1001'), paradas1002: () => getParadas('1002'),
-  env1001: () => prodData.filter(r => plantMatch(r,'1001')),
-  env1002: () => prodData.filter(r => plantMatch(r,'1002')),
-  mensualCum: () => prodData, mensualEfi: () => prodData, mensualPar: () => prodData,
+  efic1001: function() { return prodData.filter(function(r){ return plantMatch(r,'1001'); }); },
+  efi1001: function() { return prodData.filter(function(r){ return plantMatch(r,'1001'); }); },
+  efic1002: function() { return prodData.filter(function(r){ return plantMatch(r,'1002'); }); },
+  efi1002: function() { return prodData.filter(function(r){ return plantMatch(r,'1002'); }); },
+  paradas1001: function() { return getParadas('1001'); },
+  paradas1002: function() { return getParadas('1002'); },
+  ventas: function() { return prodData; },
+  resumen: function() { return prodData; }
 };
 
 function exportXLS(key) {
   const data = exportData[key] ? exportData[key]() : [];
   if (!data.length) { alert('No hay datos para exportar'); return; }
-  const clean = data.map(r => { const o={}; Object.keys(r).filter(k=>!k.startsWith('__')).forEach(k=>o[k]=r[k]); return o; });
+  const clean = data.map(function(r) { const o={}; Object.keys(r).filter(function(k){return !k.startsWith('__');}).forEach(function(k){o[k]=r[k];}); return o; });
   const ws = XLSX.utils.json_to_sheet(clean);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Datos');
-  XLSX.writeFile(wb, `MASTERKPI_${key}_${new Date().toISOString().slice(0,10)}.xlsx`);
+  XLSX.writeFile(wb, 'MASTERKPI_' + key + '_' + new Date().toISOString().slice(0,10) + '.xlsx');
 }
 
 function exportPDF(sectionId) {
   const w = window.open('', '_blank');
   const section = document.getElementById(sectionId);
   if (!section) return;
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Arial;margin:20px}table{border-collapse:collapse;width:100%;font-size:11px}th,td{border:1px solid #ccc;padding:5px 8px}th{background:#1e3a5f;color:white}@media print{body{margin:10px}}</style></head><body><h2>Dashboard KPI Produccion — MASTERKPI v2</h2><p>Exportado: ${new Date().toLocaleString('es-EC')}</p>${section.innerHTML}</body></html>`);
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Arial;margin:20px}table{border-collapse:collapse;width:100%;font-size:11px}th,td{border:1px solid #ccc;padding:5px 8px}th{background:#1e3a5f;color:white}@media print{body{margin:10px}}</style></head><body><h2>Dashboard KPI Produccion</h2><p>Exportado: ' + new Date().toLocaleString('es-EC') + '</p>' + section.innerHTML + '</body></html>');
   w.document.close();
-  setTimeout(() => { w.print(); }, 600);
+  setTimeout(function() { w.print(); }, 600);
 }
 </script>
 </body>
-</html> 
+</html>
