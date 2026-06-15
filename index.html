@@ -614,6 +614,1295 @@ tr:hover td { background:rgba(30,144,255,0.04); }
   </div>
 </div>
 
-<script src="./masterkpi_v3.js"></script>
+<script>
+/* ============================================================
+   MASTERKPI v3 — JS
+   ============================================================ */
+
+let prodData1001 = [];
+let prodData1002 = [];
+let paradasEnv1001 = [];   // PARADAS1001 ENVASADORAS
+let paradasEq1001 = [];    // PARADAS1001 EQUIPOS
+let paradasEq1002 = [];    // PARADAS 1002
+let ventasData = [];       // VENTAS (FECHA, SKU, CANT)
+let demanda1001 = [];       // DEMANDA 1001
+let demanda1002 = [];       // DEMANDA 1002
+let materialSet1001 = new Set();
+let materialSet1002 = new Set();
+
+const charts = {};
+const MESES = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+// Columnas de la hoja de produccion (1001 / 1002)
+const COLS = {
+  orden:'Orden', mat:'Material', texto:'Texto breve material', recurso:'Recurso',
+  lote:'Lote', ctdOrden:'Ctd Orden', ctdProd:'Ctd.Producida', ctdBod:'Ctd.Entregada a Bodega',
+  tira:'Tira Papel/Contramuestras', lab:'Muestra Lab', pp:'Pruebas PP', aboll:'Abolladas',
+  status:'Estatus de Orden', fecha:'Fecha Inicio Prod',
+  tReal:'TIEMPO REAL', tTeo:'TIEMPO TEORICO'
+};
+
+const CC = ['#1e90ff','#00d084','#ff9500','#a855f7','#ff3b5c','#00d4ff','#f59e0b','#6366f1','#10b981','#ec4899'];
+
+// ----------------------------------------------------------------
+// Clasificacion de Recurso -> tipo (equipo / envasadora / aux) + nombre amigable
+// ----------------------------------------------------------------
+const EQUIPOS_1001 = {
+  'F22000':'FLEX 22000', 'F13000':'FLEX 13000', 'F7000':'FLEX 7000', 'M4000':'MAXI 4000'
+};
+const ENVASADORAS_1001 = {
+  'TETA':'TET A', 'TETB':'TET B', 'TETC':'TET C', 'TETD':'TET D', 'TETE':'TET E', 'TETF':'TET F',
+  'TETH':'TET H', 'POLLM':'POL LM', 'POLNOP':'POL NOP'
+};
+const AUX_1001 = {
+  'ENVBOLS':'Envasado Bolsas', 'ENVGRAN':'Envasado Granel', 'EPASTE':'Pasteurizado', 'EVAP':'Evaporador', 'SECAD':'Secado'
+};
+
+// 1002 no tiene FLEX/MAXI ni TET; usamos su propio set de recursos.
+// Clasificamos como "equipos" los procesos de planta y "envasadoras" los recursos de envasado.
+const EQUIPOS_1002 = {
+  'FABMAN':'Fabricacion Manual', 'ENYRM':'Enfriamiento RM'
+};
+const ENVASADORAS_1002 = {
+  'ENVQB':'Env. Quesos Botella', 'ENVQM':'Env. Quesos Manual', 'ENVYTB':'Env. Yogurt Botella',
+  'ENVYTB1':'Env. Yogurt Botella 1', 'ENVYTB2':'Env. Yogurt Botella 2', 'ENYMX':'Env. Yogurt Mix', 'POLYG':'Polietileno Yogurt'
+};
+
+function resourceMeta(planta, recurso) {
+  const r = String(recurso || '').trim();
+  if (planta === '1001') {
+    if (EQUIPOS_1001[r]) return { tipo:'equipo', label:EQUIPOS_1001[r] };
+    if (ENVASADORAS_1001[r]) return { tipo:'envasadora', label:ENVASADORAS_1001[r] };
+    if (AUX_1001[r]) return { tipo:'aux', label:AUX_1001[r] };
+    return { tipo:'aux', label:r };
+  } else {
+    if (EQUIPOS_1002[r]) return { tipo:'equipo', label:EQUIPOS_1002[r] };
+    if (ENVASADORAS_1002[r]) return { tipo:'envasadora', label:ENVASADORAS_1002[r] };
+    return { tipo:'aux', label:r };
+  }
+}
+
+// ----------------------------------------------------------------
+// Clasificacion de productos en grupos
+// ----------------------------------------------------------------
+function classifyGroup(texto) {
+  const t = String(texto || '').toLowerCase();
+  if (t.includes('crema')) return 'Crema';
+  if (t.includes('avena') || t.includes('cereal')) return 'Avena/Cereal';
+  if (t.includes('chocolate') || t.includes('fresa') || t.includes('vainilla') || t.includes('mora') || t.includes('sabor')) return 'Saborizada';
+  if (t.includes('yogurt') || t.includes('yoghurt')) return 'Yogurt';
+  if (t.includes('queso')) return 'Queso';
+  if (t.includes('mantequilla') || t.includes('margarina')) return 'Mantequilla';
+  if (t.includes('polvo')) return 'Leche en Polvo';
+  if (t.includes('leche')) return 'Leche';
+  return 'Otros';
+}
+
+// ----------------------------------------------------------------
+// Helpers numericos / formato
+// ----------------------------------------------------------------
+function n(v) { const x = parseFloat(v); return isNaN(x) ? 0 : x; }
+function pct(a, b) { return b > 0 ? (a / b * 100) : 0; }
+function fmt(v, dec=0) { return Math.round(n(v)).toLocaleString('es-ES',{minimumFractionDigits:dec,maximumFractionDigits:dec}); }
+function fmtInt(v) { return Math.round(n(v)).toLocaleString('es-ES'); }
+
+function getColorClass(val, thresholds, isGood) {
+  if (isGood) {
+    if (val >= thresholds[0]) return 'good-1';
+    if (val >= thresholds[1]) return 'good-2';
+    if (val >= thresholds[2]) return 'good-3';
+    return 'good-4';
+  } else {
+    if (val >= thresholds[0]) return 'bad-1';
+    if (val >= thresholds[1]) return 'bad-2';
+    if (val >= thresholds[2]) return 'bad-3';
+    return 'bad-4';
+  }
+}
+function badge(val) {
+  if (val >= 95) return `<span class="badge badge-green">${val.toFixed(1)}%</span>`;
+  if (val >= 80) return `<span class="badge badge-orange">${val.toFixed(1)}%</span>`;
+  return `<span class="badge badge-red">${val.toFixed(1)}%</span>`;
+}
+function progBar(pctv) {
+  const color = pctv >= 95 ? 'var(--green)' : pctv >= 80 ? 'var(--orange)' : 'var(--red)';
+  return `<span class="prog-bar"><span class="prog-fill" style="width:${Math.min(pctv,100)}%;background:${color};"></span></span>`;
+}
+function kc(id, html) { const el = document.getElementById(id); if (el) el.innerHTML = html; }
+function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+
+// ----------------------------------------------------------------
+// Navegacion
+// ----------------------------------------------------------------
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.getElementById('nt-' + id)?.classList.add('active');
+  if (id === 'p1001') renderPlanta('1001');
+  if (id === 'p1002') renderPlanta('1002');
+  if (id === 'mensual') renderMensual();
+  if (id === 'ventas') renderVentas('1001');
+  if (id === 'resumen') renderResumen();
+}
+
+function showSubtab(planta, tab) {
+  const prefix = (planta === 'M' || planta === 'V') ? planta : planta;
+  const base = (planta === 'M') ? 'subM' : (planta === 'V') ? 'subV' : `sub${planta}`;
+  document.querySelectorAll(`[id^="${base}-"]`).forEach(el => el.classList.add('hidden'));
+  document.querySelectorAll(`[id^="st${prefix}-"]`).forEach(el => el.classList.remove('active'));
+  document.getElementById(`${base}-${tab}`).classList.remove('hidden');
+  document.getElementById(`st${prefix}-${tab}`).classList.add('active');
+  if (planta === 'V') {
+    renderVentas(tab);
+  } else if (planta !== 'M') {
+    if (tab === 'cap') renderPlanta(planta);
+    if (tab === 'par') renderParadas(planta);
+    if (tab === 'env') renderEnvasadoras(planta);
+  } else {
+    if (tab === 'cum') renderMensual();
+    if (tab === 'efi') renderMensualEfi();
+    if (tab === 'par') renderParetos();
+  }
+}
+
+// ----------------------------------------------------------------
+// Carga de archivo
+// ----------------------------------------------------------------
+const uploadZone = document.getElementById('uploadZone');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault(); uploadZone.classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f) processFile(f);
+});
+
+function handleFile(e) { if (e.target.files[0]) processFile(e.target.files[0]); }
+
+function localDateStr(d) {
+  if (!d) return '';
+  const yy = d.getFullYear();
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const dd = String(d.getDate()).padStart(2,'0');
+  return `${yy}-${mm}-${dd}`;
+}
+
+function excelSerial(v) {
+  if (!v && v !== 0) return null;
+  if (v instanceof Date) return v;
+  const num = parseFloat(v);
+  if (!isNaN(num) && num > 30000 && num < 60000) {
+    return new Date((num - 25569) * 86400 * 1000);
+  }
+  if (typeof v === 'string') {
+    // Formatos dd/mm/yyyy[ HH:MM[:SS]] o dd-mm-yyyy[ HH:MM[:SS]]
+    const m = v.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+    if (m) {
+      const dd = parseInt(m[1]), mm = parseInt(m[2]), yy = parseInt(m[3]);
+      const hh = m[4] ? parseInt(m[4]) : 0, mi = m[5] ? parseInt(m[5]) : 0, ss = m[6] ? parseInt(m[6]) : 0;
+      const d = new Date(yy, mm-1, dd, hh, mi, ss);
+      if (!isNaN(d)) return d;
+    }
+    const d2 = new Date(v);
+    if (!isNaN(d2)) return d2;
+  }
+  return null;
+}
+
+function processArrayBuffer(arrayBuffer, label) {
+  try {
+    const wb = XLSX.read(new Uint8Array(arrayBuffer), { type:'array', cellDates:false });
+    const get = sn => wb.SheetNames.includes(sn) ? XLSX.utils.sheet_to_json(wb.Sheets[sn], { defval:'' }) : [];
+
+    prodData1001 = get('1001').map(r => normalizeRow(r, '1001'));
+    prodData1002 = get('1002').map(r => normalizeRow(r, '1002'));
+
+    paradasEnv1001 = get('PARADAS1001 ENVASADORAS').map(normalizeParadaEnvRow);
+    paradasEq1001 = get('PARADAS1001 EQUIPOS').map(normalizeParadaEqRow);
+    paradasEq1002 = get('PARADAS 1002').map(normalizeParadaEqRow);
+
+    ventasData = get('VENTAS').map(normalizeVentaRow);
+    demanda1001 = get('DEMANDA 1001');
+    demanda1002 = get('DEMANDA 1002');
+
+    buildMaterialSets();
+    populateFilters();
+    populateYearSelectors();
+
+    const totalRows = prodData1001.length + prodData1002.length;
+    document.getElementById('fName').textContent = label;
+    document.getElementById('fRows').textContent = totalRows.toLocaleString();
+    document.getElementById('fileInfo').classList.remove('hidden');
+    ['nt-p1001','nt-p1002','nt-mensual','nt-ventas','nt-resumen'].forEach(id => document.getElementById(id).classList.remove('hidden'));
+    ['card1001','card1002','cardMensual'].forEach(id => document.getElementById(id).classList.add('ready'));
+    uploadZone.innerHTML = '<i class="fas fa-check-circle" style="font-size:2rem;color:var(--green);"></i><h3 style="margin-top:12px;">Archivo cargado!</h3><p>'
+      + prodData1001.length + ' ordenes 1001 · ' + prodData1002.length + ' ordenes 1002'
+      + (paradasEnv1001.length || paradasEq1001.length || paradasEq1002.length ? ' · paradas registradas' : '') + '</p>';
+    return true;
+  } catch(err) {
+    uploadZone.innerHTML = '<i class="fas fa-exclamation-triangle" style="color:var(--red);font-size:2rem;"></i><h3 style="margin-top:12px;">Error al leer el archivo</h3><p>' + err.message + '</p>';
+    console.error(err);
+    return false;
+  }
+}
+
+function processFile(file) {
+  uploadZone.innerHTML = '<i class="fas fa-spinner spin" style="font-size:2rem;color:var(--blue);"></i><h3 style="margin-top:12px;">Procesando...</h3>';
+  const reader = new FileReader();
+  reader.onload = ev => processArrayBuffer(ev.target.result, file.name);
+  reader.readAsArrayBuffer(file);
+}
+
+
+
+// ----------------------------------------------------------------
+// Normalizacion de filas
+// ----------------------------------------------------------------
+function normalizeRow(r, planta) {
+  const o = Object.assign({}, r);
+  const d = excelSerial(o[COLS.fecha]);
+  o.__date = d;
+  o.__year = d ? d.getFullYear() : null;
+  o.__month = d ? d.getMonth() + 1 : null;
+  o.__dateStr = d ? localDateStr(d) : '';
+  o.__group = classifyGroup(o[COLS.texto] || o[COLS.mat] || '');
+  o.__planta = planta;
+  const meta = resourceMeta(planta, o[COLS.recurso]);
+  o.__resTipo = meta.tipo;
+  o.__resLabel = meta.label;
+  // Eficacia (cantidad)
+  o.__eficacia = pct(n(o[COLS.ctdProd]), n(o[COLS.ctdOrden]));
+  // Eficiencia (tiempo) - viene precalculada como fraccion 0-1 en EFICIENCIA, o se calcula
+  let efi = o[COLS.tTeo] !== '' && o[COLS.tReal] ? pct(n(o[COLS.tTeo]), n(o[COLS.tReal])) : null;
+  if (efi === null && o['EFICIENCIA'] !== '' && o['EFICIENCIA'] != null) efi = n(o['EFICIENCIA']) * 100;
+  o.__eficiencia = efi !== null ? adjEff(efi) : null;
+  return o;
+}
+
+function normalizeParadaEnvRow(r) {
+  const o = Object.assign({}, r);
+  const d = excelSerial(r['Desde']);
+  o.__date = d;
+  o.__dateStr = d ? localDateStr(d) : '';
+  o.__dur = n(r['Duración (min)']);
+  o.__equipo = String(r['Envasadora'] || '').trim();
+  o.__causa = String(r['Descripción'] || '').trim();
+  o.__producto = String(r['Producto'] || '').trim();
+  return o;
+}
+
+function normalizeParadaEqRow(r) {
+  const o = Object.assign({}, r);
+  const d = excelSerial(r['FECHA INICIO']);
+  const dFin = excelSerial(r['FECHA FIN']);
+  o.__date = d;
+  o.__dateStr = d ? localDateStr(d) : '';
+  let dur = 0;
+  if (d && dFin) dur = (dFin - d) / 60000;
+  o.__durRaw = dur;
+  // Saneamiento: duraciones negativas (FIN < INICIO, error de captura) -> 0
+  // duraciones > 24h (1440 min) se capan a 1440 para no distorsionar promedios/paretos
+  if (dur < 0) dur = 0;
+  if (dur > 1440) dur = 1440;
+  o.__dur = dur;
+  o.__equipo = String(r['EQUIPO'] || '').trim();
+  o.__causa = String(r['TÍTULO'] || r['DESCRIPCIÓN'] || '').trim();
+  o.__producto = '';
+  return o;
+}
+
+function normalizeVentaRow(r) {
+  const o = Object.assign({}, r);
+  const d = excelSerial(r['FECHA']);
+  o.__date = d;
+  o.__year = d ? d.getFullYear() : null;
+  o.__month = d ? d.getMonth() + 1 : null;
+  o.__dateStr = d ? localDateStr(d) : '';
+  o.__sku = String(r['SKU'] || '').trim();
+  o.__cant = n(r['CANT']);
+  return o;
+}
+
+// ----------------------------------------------------------------
+// Filtros
+// ----------------------------------------------------------------
+function plantData(p) { return p === '1001' ? prodData1001 : prodData1002; }
+
+function populateFilters() {
+  ['1001','1002'].forEach(p => {
+    const data = plantData(p);
+    const prods = [...new Set(data.map(r => r[COLS.texto] || r[COLS.mat] || '').filter(Boolean))].sort();
+    fillSelect(`f${p}c-prod`, prods);
+    const envs = [...new Set(data.filter(r=>r.__resTipo==='envasadora').map(r => r.__resLabel).filter(Boolean))].sort();
+    fillSelect(`f${p}e-env`, envs);
+  });
+
+  // Filtros de paradas - 1001 (depende de fuente)
+  populateParadasFilters('1001');
+  populateParadasFilters('1002');
+}
+
+function getParadasSource(p) {
+  if (p === '1001') {
+    const fuente = document.getElementById('f1001p-fuente')?.value || 'env';
+    return fuente === 'env' ? paradasEnv1001 : paradasEq1001;
+  }
+  return paradasEq1002;
+}
+
+function populateParadasFilters(p) {
+  const data = getParadasSource(p);
+  const equipos = [...new Set(data.map(r => r.__equipo).filter(Boolean))].sort();
+  fillSelect(`f${p}p-equipo`, equipos);
+}
+
+function fillSelect(id, vals) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const cur = el.value;
+  while (el.options.length > 1) el.remove(1);
+  vals.forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; el.appendChild(o); });
+  if (cur) el.value = cur;
+}
+
+function populateYearSelectors() {
+  const years = new Set();
+  prodData1001.concat(prodData1002).forEach(r => { if (r.__year) years.add(r.__year); });
+  const sorted = [...years].sort((a,b)=>b-a);
+  ['fM-year','fME-year','fR-year'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const cur = el.value;
+    el.innerHTML = '';
+    sorted.forEach(y => { const o = document.createElement('option'); o.value = y; o.textContent = y; el.appendChild(o); });
+    if (cur && sorted.includes(parseInt(cur))) el.value = cur;
+  });
+}
+
+function filterByDate(data, fromId, toId) {
+  const from = document.getElementById(fromId)?.value;
+  const to = document.getElementById(toId)?.value;
+  return data.filter(r => {
+    if (from && r.__dateStr && r.__dateStr < from) return false;
+    if (to && r.__dateStr && r.__dateStr > to) return false;
+    return true;
+  });
+}
+
+// ----------------------------------------------------------------
+// Charts
+// ----------------------------------------------------------------
+const baseOpts = {
+  responsive:true, maintainAspectRatio:false,
+  plugins:{ legend:{ labels:{ color:'#7a9abf', font:{family:'DM Sans'} } } },
+  scales:{
+    x:{ grid:{ color:'rgba(30,90,150,.12)' }, ticks:{ color:'#7a9abf', maxRotation:40, font:{family:'DM Sans',size:11} } },
+    y:{ grid:{ color:'rgba(30,90,150,.12)' }, ticks:{ color:'#7a9abf', font:{family:'DM Sans',size:11} } }
+  }
+};
+
+function makeBar(id, labels, datasets, opts={}) {
+  destroyChart(id);
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  charts[id] = new Chart(ctx, { type:'bar', data:{ labels, datasets },
+    options: { ...baseOpts, ...opts, plugins:{...baseOpts.plugins,...(opts.plugins||{})}, scales:{...baseOpts.scales,...(opts.scales||{})} }
+  });
+}
+function makeDoughnut(id, labels, data, colors) {
+  destroyChart(id);
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  charts[id] = new Chart(ctx, { type:'doughnut',
+    data:{ labels, datasets:[{ data, backgroundColor: colors || CC, borderWidth:0, hoverOffset:8 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'right', labels:{ color:'#7a9abf' } } } }
+  });
+}
+function makeLine(id, labels, datasets, opts={}) {
+  destroyChart(id);
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  charts[id] = new Chart(ctx, { type:'line', data:{ labels, datasets },
+    options: { ...baseOpts, tension:.4, ...opts, plugins:{...baseOpts.plugins,...(opts.plugins||{})}, scales:{...baseOpts.scales,...(opts.scales||{})} }
+  });
+}
+function makePareto(id, labels, values, color='#1e90ff') {
+  destroyChart(id);
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  const total = values.reduce((a,b)=>a+b,0);
+  let cum = 0;
+  const cumPct = values.map(v => { cum += v; return total > 0 ? (cum/total*100) : 0; });
+  charts[id] = new Chart(ctx, {
+    data:{ labels, datasets:[
+      { type:'bar', label:'Valor', data:values, backgroundColor:color, borderRadius:4, yAxisID:'y' },
+      { type:'line', label:'% Acumulado', data:cumPct, borderColor:'#ff3b5c', pointBackgroundColor:'#ff3b5c', pointRadius:3, borderWidth:2, fill:false, tension:.3, yAxisID:'y2' }
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{ color:'#7a9abf' } } },
+      scales:{
+        x:{ grid:{ color:'rgba(30,90,150,.1)' }, ticks:{ color:'#7a9abf', maxRotation:45, font:{size:10} } },
+        y:{ grid:{ color:'rgba(30,90,150,.12)' }, ticks:{ color:'#7a9abf' }, position:'left' },
+        y2:{ min:0, max:100, position:'right', grid:{ drawOnChartArea:false }, ticks:{ color:'#ff3b5c', callback:v=>v+'%' } }
+      }
+    }
+  });
+}
+
+function effColor(v) { return v>=95?'#0d7a3e':v>=85?'#00d084':v>=75?'#66f5b0':'#b3fad8'; }
+
+// Regla de negocio: si la eficiencia (Teorico/Real) supera 100%, el excedente se
+// resta del 100% (ej. 133% -> 100 - 33 = 67%). Nunca se muestra por encima de 100%.
+function adjEff(v) {
+  if (v === null || v === undefined) return 0;
+  if (v > 100) return Math.max(0, 100 - (v - 100));
+  return v;
+}
+
+// ================================================================
+// RENDER PLANTA — EFICACIA & EFICIENCIA
+// ================================================================
+function aggregateBy(data, keyFn) {
+  const m = {};
+  data.forEach(r => {
+    const k = keyFn(r);
+    if (!m[k]) m[k] = { orden:0, prod:0, bod:0, tReal:0, tTeo:0, rows:0, tira:0, lab:0, pp:0, aboll:0 };
+    m[k].orden += n(r[COLS.ctdOrden]); m[k].prod += n(r[COLS.ctdProd]); m[k].bod += n(r[COLS.ctdBod]);
+    m[k].tReal += n(r[COLS.tReal]); m[k].tTeo += n(r[COLS.tTeo]);
+    m[k].tira += n(r[COLS.tira]); m[k].lab += n(r[COLS.lab]); m[k].pp += n(r[COLS.pp]); m[k].aboll += n(r[COLS.aboll]);
+    m[k].rows++;
+  });
+  Object.values(m).forEach(v => {
+    v.eficacia = pct(v.prod, v.orden);
+    v.eficiencia = v.tReal > 0 ? adjEff(pct(v.tTeo, v.tReal)) : 0;
+  });
+  return m;
+}
+
+function groupByMonth(data) {
+  const m = {};
+  for (let i=1;i<=12;i++) m[i] = { orden:0, prod:0, bod:0, tReal:0, tTeo:0, rows:0, tira:0, lab:0, pp:0, aboll:0 };
+  data.forEach(r => {
+    if (!r.__month) return;
+    const mo = r.__month;
+    m[mo].orden += n(r[COLS.ctdOrden]); m[mo].prod += n(r[COLS.ctdProd]); m[mo].bod += n(r[COLS.ctdBod]);
+    m[mo].tReal += n(r[COLS.tReal]); m[mo].tTeo += n(r[COLS.tTeo]);
+    m[mo].tira += n(r[COLS.tira]); m[mo].lab += n(r[COLS.lab]); m[mo].pp += n(r[COLS.pp]); m[mo].aboll += n(r[COLS.aboll]);
+    m[mo].rows++;
+  });
+  for (let i=1;i<=12;i++) {
+    m[i].eficacia = pct(m[i].prod, m[i].orden);
+    m[i].eficiencia = m[i].tReal > 0 ? adjEff(pct(m[i].tTeo, m[i].tReal)) : 0;
+  }
+  return m;
+}
+
+function getMonthsInRange(data) {
+  const months = new Set();
+  data.forEach(r => { if (r.__month) months.add(r.__month); });
+  return [...months].sort((a,b) => a-b);
+}
+
+function renderPlanta(p) {
+  const all = plantData(p);
+  if (all.length === 0) return;
+  let data = filterByDate(all, `f${p}c-from`, `f${p}c-to`);
+  const prodFilter = document.getElementById(`f${p}c-prod`)?.value;
+  if (prodFilter) data = data.filter(r => (r[COLS.texto] || r[COLS.mat] || '') === prodFilter);
+
+  const ctdOrden = data.reduce((s,r) => s + n(r[COLS.ctdOrden]), 0);
+  const ctdProd = data.reduce((s,r) => s + n(r[COLS.ctdProd]), 0);
+  const ctdBod = data.reduce((s,r) => s + n(r[COLS.ctdBod]), 0);
+  const tReal = data.reduce((s,r) => s + n(r[COLS.tReal]), 0);
+  const tTeo = data.reduce((s,r) => s + n(r[COLS.tTeo]), 0);
+  const tira = data.reduce((s,r) => s + n(r[COLS.tira]), 0);
+  const lab = data.reduce((s,r) => s + n(r[COLS.lab]), 0);
+  const pp = data.reduce((s,r) => s + n(r[COLS.pp]), 0);
+  const aboll = data.reduce((s,r) => s + n(r[COLS.aboll]), 0);
+  const desp = tira + lab + pp + aboll;
+
+  // EFICACIA global: solo envasadoras (las mas cercanas al producto terminado),
+  // ya que FLEX/MAXI/FABMAN/ENYRM/etc alimentan en secuencia a las envasadoras
+  // y sumar ambos duplicaria la cantidad. EFICIENCIA si usa todas las filas.
+  const dataEnv = data.filter(r => r.__resTipo === 'envasadora');
+  const ctdOrdenEnv = dataEnv.reduce((s,r) => s + n(r[COLS.ctdOrden]), 0);
+  const ctdProdEnv = dataEnv.reduce((s,r) => s + n(r[COLS.ctdProd]), 0);
+  const eficacia = pct(ctdProdEnv, ctdOrdenEnv);
+
+  const eficiencia = tReal > 0 ? adjEff(pct(tTeo, tReal)) : 0;
+  const sobre = Math.max(0, ctdProd - ctdOrden);
+  const prods = new Set(data.map(r => r[COLS.texto] || r[COLS.mat] || '').filter(Boolean));
+
+  const eficaciaClass = getColorClass(eficacia, [95, 85, 75], true);
+  const eficienciaClass = getColorClass(eficiencia, [90, 75, 60], true);
+  const despClass = getColorClass(desp, [5000, 2000, 500], false);
+
+  kc(`kpi${p}`, `
+    <div class="kpi-card"><div class="kpi-lbl">Ordenes</div><div class="kpi-val">${fmtInt(data.length)}</div><div class="kpi-sub">${prods.size} productos unicos</div></div>
+    <div class="kpi-card g"><div class="kpi-lbl">Ctd Ordenada</div><div class="kpi-val">${fmtInt(ctdOrden)}</div><div class="kpi-sub">Unidades</div></div>
+    <div class="kpi-card c"><div class="kpi-lbl">Ctd Producida</div><div class="kpi-val">${fmtInt(ctdProd)}</div><div class="kpi-sub">Unidades</div></div>
+    <div class="kpi-card p"><div class="kpi-lbl">Entregado Bodega</div><div class="kpi-val">${fmtInt(ctdBod)}</div><div class="kpi-sub">Unidades</div></div>
+    <div class="kpi-card ${eficaciaClass}"><div class="kpi-lbl">EFICACIA</div><div class="kpi-val">${eficacia.toFixed(1)}%</div><div class="kpi-sub">Producida / Ordenada (solo envasadoras)</div></div>
+    <div class="kpi-card ${eficienciaClass}"><div class="kpi-lbl">EFICIENCIA</div><div class="kpi-val">${eficiencia.toFixed(1)}%</div><div class="kpi-sub">T.Teorico / T.Real</div></div>
+    <div class="kpi-card ${despClass}"><div class="kpi-lbl">Desperdicio</div><div class="kpi-val">${fmtInt(desp)}</div><div class="kpi-sub">Tira+Lab+PP+Aboll</div></div>
+    <div class="kpi-card o"><div class="kpi-lbl">Sobreproduccion</div><div class="kpi-val">${fmtInt(sobre)}</div><div class="kpi-sub">Prod - Ordenado &gt; 0</div></div>
+  `);
+
+  // ----- EFICACIA: pastel global -----
+  makeDoughnut(`ch${p}-eficacia-pie`, ['Producido','Faltante vs Ordenado'],
+    [Math.min(ctdProd,ctdOrden), Math.max(0, ctdOrden-ctdProd)],
+    ['#00d084','#1e3a5f']);
+
+  // ----- EFICACIA: por equipo (FLEX/MAXI) -----
+  const byEquipo = aggregateBy(data.filter(r=>r.__resTipo==='equipo'), r=>r.__resLabel);
+  const eqEntries = Object.entries(byEquipo).sort((a,b)=>b[1].prod-a[1].prod);
+  makeBar(`ch${p}-eficacia-eq`, eqEntries.map(x=>x[0]), [
+    { label:'Eficacia %', data:eqEntries.map(x=>x[1].eficacia), backgroundColor:'#1e90ff', borderRadius:4 }
+  ], { plugins:{legend:{display:false}}, scales:{...baseOpts.scales, y:{...baseOpts.scales.y, max:120, ticks:{callback:v=>v+'%',color:'#7a9abf'}}} });
+
+  // ----- EFICACIA: por envasadora -----
+  const byEnvasadora = aggregateBy(data.filter(r=>r.__resTipo==='envasadora'), r=>r.__resLabel);
+  const envEntries = Object.entries(byEnvasadora).sort((a,b)=>b[1].prod-a[1].prod);
+  makeBar(`ch${p}-eficacia-env`, envEntries.map(x=>x[0]), [
+    { label:'Eficacia %', data:envEntries.map(x=>x[1].eficacia), backgroundColor:envEntries.map(x=>effColor(x[1].eficacia)), borderRadius:4 }
+  ], { plugins:{legend:{display:false}}, scales:{...baseOpts.scales, y:{...baseOpts.scales.y, max:120, ticks:{callback:v=>v+'%',color:'#7a9abf'}}} });
+
+  // ----- EFICACIA: acumulada por mes (solo envasadoras, evita doble conteo) -----
+  const byMonth = groupByMonth(data);
+  const byMonthEnv = groupByMonth(dataEnv);
+  const mesesConDatos = Object.entries(byMonth).filter(([,v])=>v.rows>0);
+  const mesesConDatosEnv = Object.entries(byMonthEnv).filter(([m])=>byMonth[m].rows>0);
+  makeBar(`ch${p}-eficacia-mes`, mesesConDatosEnv.map(([m])=>MESES[m]), [
+    { label:'Eficacia %', data:mesesConDatosEnv.map(([,v])=>v.eficacia), backgroundColor:'#1e90ff', borderRadius:4 },
+    { label:'Meta 95%', type:'line', data:mesesConDatosEnv.map(()=>95), borderColor:'#ff3b5c', borderDash:[6,4], pointRadius:0, fill:false }
+  ], { scales:{...baseOpts.scales, y:{...baseOpts.scales.y, max:120, ticks:{callback:v=>v+'%',color:'#7a9abf'}}} });
+
+  // ----- EFICIENCIA: pastel global -----
+  makeDoughnut(`ch${p}-eficiencia-pie`, ['Eficiencia','Excedente / Brecha'],
+    [eficiencia, Math.max(0, 100-eficiencia)],
+    ['#00d084','#1e3a5f']);
+
+  // ----- EFICIENCIA: por equipo -----
+  makeBar(`ch${p}-eficiencia-eq`, eqEntries.map(x=>x[0]), [
+    { label:'Eficiencia %', data:eqEntries.map(x=>x[1].eficiencia), backgroundColor:'#00d084', borderRadius:4 }
+  ], { plugins:{legend:{display:false}}, scales:{...baseOpts.scales, y:{...baseOpts.scales.y, max:100, ticks:{callback:v=>v+'%',color:'#7a9abf'}}} });
+
+  // ----- EFICIENCIA: por envasadora -----
+  makeBar(`ch${p}-eficiencia-env`, envEntries.map(x=>x[0]), [
+    { label:'Eficiencia %', data:envEntries.map(x=>x[1].eficiencia), backgroundColor:envEntries.map(x=>effColor(x[1].eficiencia)), borderRadius:4 }
+  ], { plugins:{legend:{display:false}}, scales:{...baseOpts.scales, y:{...baseOpts.scales.y, max:100, ticks:{callback:v=>v+'%',color:'#7a9abf'}}} });
+
+  // ----- EFICIENCIA: acumulada por mes -----
+  makeBar(`ch${p}-eficiencia-mes`, mesesConDatos.map(([m])=>MESES[m]), [
+    { label:'Eficiencia %', data:mesesConDatos.map(([,v])=>v.eficiencia), backgroundColor:'#00d084', borderRadius:4 },
+    { label:'Meta 95%', type:'line', data:mesesConDatos.map(()=>95), borderColor:'#ff3b5c', borderDash:[6,4], pointRadius:0, fill:false }
+  ], { scales:{...baseOpts.scales, y:{...baseOpts.scales.y, max:100, ticks:{callback:v=>v+'%',color:'#7a9abf'}}} });
+
+  // ----- Evolucion diaria (si solo hay 1 mes en rango) o mensual -----
+  const monthsInRange = getMonthsInRange(data);
+  if (monthsInRange.length === 1) {
+    const mo = monthsInRange[0];
+    const monthData = data.filter(r => r.__month === mo);
+    const monthDataEnv = dataEnv.filter(r => r.__month === mo);
+    const byDay = {};
+    monthData.forEach(r => {
+      const d = r.__dateStr;
+      if (!byDay[d]) byDay[d] = { tReal:0, tTeo:0 };
+      byDay[d].tReal += n(r[COLS.tReal]); byDay[d].tTeo += n(r[COLS.tTeo]);
+    });
+    const byDayEnv = {};
+    monthDataEnv.forEach(r => {
+      const d = r.__dateStr;
+      if (!byDayEnv[d]) byDayEnv[d] = { orden:0, prod:0 };
+      byDayEnv[d].orden += n(r[COLS.ctdOrden]); byDayEnv[d].prod += n(r[COLS.ctdProd]);
+    });
+    const days = [...new Set([...Object.keys(byDay), ...Object.keys(byDayEnv)])].sort();
+    const eficaciaDays = days.map(d => byDayEnv[d] ? pct(byDayEnv[d].prod, byDayEnv[d].orden) : 0);
+    const eficienciaDays = days.map(d => byDay[d] && byDay[d].tReal>0 ? adjEff(pct(byDay[d].tTeo, byDay[d].tReal)) : 0);
+    makeLine(`ch${p}-evo`, days, [
+      { label:'Eficacia % (envasadoras)', data:eficaciaDays, borderColor:'#1e90ff', backgroundColor:'rgba(30,144,255,.1)', fill:true, pointRadius:4 },
+      { label:'Eficiencia %', data:eficienciaDays, borderColor:'#00d084', backgroundColor:'rgba(0,208,132,.1)', fill:true, pointRadius:4 },
+      { label:'Meta 95%', data:days.map(()=>95), borderColor:'#ff3b5c', borderDash:[6,4], pointRadius:0, fill:false }
+    ], { scales:{...baseOpts.scales, y:{...baseOpts.scales.y, max:120, ticks:{callback:v=>v+'%',color:'#7a9abf'}}} });
+  } else {
+    const meses = monthsInRange.filter(m => byMonth[m].rows > 0);
+    const labels = meses.map(m => MESES[m]);
+    makeLine(`ch${p}-evo`, labels, [
+      { label:'Eficacia % (envasadoras)', data:meses.map(m=>byMonthEnv[m] ? byMonthEnv[m].eficacia : 0), borderColor:'#1e90ff', backgroundColor:'rgba(30,144,255,.1)', fill:true, pointRadius:5 },
+      { label:'Eficiencia %', data:meses.map(m=>byMonth[m].eficiencia), borderColor:'#00d084', backgroundColor:'rgba(0,208,132,.1)', fill:true, pointRadius:5 },
+      { label:'Meta 95%', data:labels.map(()=>95), borderColor:'#ff3b5c', borderDash:[6,4], pointRadius:0, fill:false }
+    ], { scales:{...baseOpts.scales, y:{...baseOpts.scales.y, max:120, ticks:{callback:v=>v+'%',color:'#7a9abf'}}} });
+  }
+
+  // ----- Eficiencia por grupo de producto -----
+  const byGroup = aggregateBy(data, r => r.__group || 'Otros');
+  const groupSorted = Object.entries(byGroup).sort((a,b) => b[1].prod - a[1].prod);
+  let grupoHTML = '';
+  groupSorted.forEach(([g, v]) => {
+    const e = v.eficiencia;
+    const color = effColor(e);
+    grupoHTML += `
+      <div class="group-card">
+        <span class="group-name">${g}</span>
+        <div class="group-bar"><div class="group-fill" style="width:${Math.min(e,100)}%;background:${color};"></div></div>
+        <span class="group-pct" style="color:${color}">${e.toFixed(1)}%</span>
+      </div>`;
+  });
+  kc(`ch${p}-grupo-wrap`, grupoHTML);
+
+  // ----- Tabla detalle -----
+  const dispCols = [COLS.orden, COLS.texto, COLS.recurso, COLS.ctdOrden, COLS.ctdProd, COLS.ctdBod, COLS.tira, COLS.lab, COLS.pp, COLS.aboll, COLS.status, '__dateStr'];
+  const heads = ['Orden','Producto','Recurso','Ord.','Prod.','Bodega','Tira','Lab','PP','Aboll.','Estatus','Fecha'];
+  buildTable(`th${p}c`, `tb${p}c`, data.slice(0,300), dispCols, heads, row => {
+    const c = row.__eficacia;
+    const eVal = row.__eficiencia;
+    const eCell = eVal !== null ? badge(eVal) : '<span class="badge badge-blue">—</span>';
+    return `<td>${badge(c)} ${progBar(c)}</td><td>${eCell}</td>`;
+  }, ['Eficacia%','Eficiencia%']);
+  kc(`cnt${p}c`, `<span class="badge badge-blue">${data.length}</span>`);
+}
+
+function buildTable(thId, tbId, data, cols, heads, extraCells, extraHeads) {
+  const thead = document.getElementById(thId);
+  const tbody = document.getElementById(tbId);
+  if (!thead || !tbody) return;
+  thead.innerHTML = '';
+  tbody.innerHTML = '';
+  const tr = document.createElement('tr');
+  [...heads, ...(extraHeads||[])].forEach(h => { const th = document.createElement('th'); th.textContent = h; tr.appendChild(th); });
+  thead.appendChild(tr);
+  data.forEach(row => {
+    const tr2 = document.createElement('tr');
+    cols.forEach(c => {
+      const td = document.createElement('td');
+      const v = row[c] !== undefined ? row[c] : '';
+      if ([COLS.ctdOrden, COLS.ctdProd, COLS.ctdBod, COLS.tira, COLS.lab, COLS.pp, COLS.aboll].includes(c)) {
+        td.textContent = v !== '' ? fmtInt(n(v)) : '0'; td.style.textAlign = 'right';
+      } else if (c === COLS.status) {
+        const vs = String(v).toLowerCase();
+        td.innerHTML = vs.includes('cerr') ? `<span class="badge badge-green">${v||'—'}</span>` : vs.includes('libera') ? `<span class="badge badge-blue">${v}</span>` : `<span class="badge badge-orange">${v||'—'}</span>`;
+      } else { td.textContent = String(v).substring(0, 40); }
+      tr2.appendChild(td);
+    });
+    if (extraCells) tr2.insertAdjacentHTML('beforeend', extraCells(row));
+    tbody.appendChild(tr2);
+  });
+}
+
+// ================================================================
+// RENDER ENVASADORAS
+// ================================================================
+function renderEnvasadoras(p) {
+  const all = plantData(p);
+  if (all.length === 0) return;
+  let data = filterByDate(all, `f${p}e-from`, `f${p}e-to`);
+  data = data.filter(r => r.__resTipo === 'envasadora');
+  const envFilter = document.getElementById(`f${p}e-env`)?.value;
+  if (envFilter) data = data.filter(r => r.__resLabel === envFilter);
+
+  const byEnv = aggregateBy(data, r => r.__resLabel);
+  const sorted = Object.entries(byEnv).sort((a,b)=>b[1].prod-a[1].prod);
+  const labels = sorted.map(x=>x[0]);
+
+  const totalOrden = data.reduce((s,r) => s + n(r[COLS.ctdOrden]), 0);
+  const totalProd = data.reduce((s,r) => s + n(r[COLS.ctdProd]), 0);
+  const totalBod = data.reduce((s,r) => s + n(r[COLS.ctdBod]), 0);
+  const totalEficacia = pct(totalProd, totalOrden);
+  const totalTReal = data.reduce((s,r) => s + n(r[COLS.tReal]), 0);
+  const totalTTeo = data.reduce((s,r) => s + n(r[COLS.tTeo]), 0);
+  const totalEficiencia = totalTReal>0 ? adjEff(pct(totalTTeo, totalTReal)) : 0;
+
+  kc(`kpiEnv${p}`, `
+    <div class="kpi-card"><div class="kpi-lbl">Envasadoras</div><div class="kpi-val">${sorted.length}</div><div class="kpi-sub">Activas</div></div>
+    <div class="kpi-card g"><div class="kpi-lbl">Total Ordenado</div><div class="kpi-val">${fmtInt(totalOrden)}</div><div class="kpi-sub">Unidades</div></div>
+    <div class="kpi-card c"><div class="kpi-lbl">Total Producido</div><div class="kpi-val">${fmtInt(totalProd)}</div><div class="kpi-sub">Unidades</div></div>
+    <div class="kpi-card ${getColorClass(totalEficacia, [95,85,75], true)}"><div class="kpi-lbl">Eficacia Total</div><div class="kpi-val">${totalEficacia.toFixed(1)}%</div><div class="kpi-sub">Producido/Ordenado</div></div>
+    <div class="kpi-card ${getColorClass(totalEficiencia, [90,75,60], true)}"><div class="kpi-lbl">Eficiencia Total</div><div class="kpi-val">${totalEficiencia.toFixed(1)}%</div><div class="kpi-sub">T.Teorico/T.Real</div></div>
+  `);
+
+  makeBar(`ch${p}-eprod`, labels, [
+    { label:'Producido', data:sorted.map(x=>x[1].prod), backgroundColor:'#1e90ff', borderRadius:4 },
+    { label:'Bodega', data:sorted.map(x=>x[1].bod), backgroundColor:'#00d084', borderRadius:4 }
+  ]);
+
+  makeBar(`ch${p}-ecump`, labels, [
+    { label:'Eficiencia %', data:sorted.map(x=>x[1].eficiencia), backgroundColor:sorted.map(x=>effColor(x[1].eficiencia)), borderRadius:4 }
+  ], { plugins:{ legend:{display:false} }, scales:{...baseOpts.scales, y:{...baseOpts.scales.y, max:100, ticks:{ callback:v=>v+'%', color:'#7a9abf'}}} });
+
+  const thead = document.getElementById(`thEnv${p}`);
+  const tbody = document.getElementById(`tbEnv${p}`);
+  if (thead && tbody) {
+    thead.innerHTML = '<tr><th>Envasadora</th><th>Ordenes</th><th>Ordenado</th><th>Producido</th><th>Bodega</th><th>Desperdicio</th><th>Eficacia%</th><th>Eficiencia%</th></tr>';
+    tbody.innerHTML = '';
+    sorted.forEach(([k, v]) => {
+      const desp = v.tira+v.lab+v.pp+v.aboll;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${k}</td><td style="text-align:right">${v.rows}</td><td style="text-align:right">${fmtInt(v.orden)}</td><td style="text-align:right">${fmtInt(v.prod)}</td><td style="text-align:right">${fmtInt(v.bod)}</td><td style="text-align:right">${fmtInt(desp)}</td><td>${badge(v.eficacia)} ${progBar(v.eficacia)}</td><td>${badge(v.eficiencia)}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+}
+
+// ================================================================
+// RENDER MENSUAL
+// ================================================================
+function renderMensual() {
+  const year = parseInt(document.getElementById('fM-year')?.value);
+  if (!year) return;
+  const planta = document.getElementById('fM-planta')?.value || '';
+  let data = [];
+  if (planta === '1001' || planta === '') data = data.concat(prodData1001);
+  if (planta === '1002' || planta === '') data = data.concat(prodData1002);
+  data = data.filter(r => r.__year === year);
+
+  const byMonth = groupByMonth(data);
+  const byMonthEnv = groupByMonth(data.filter(r => r.__resTipo === 'envasadora'));
+  const meses = Object.entries(byMonth).filter(([,v])=>v.rows>0);
+  const eficaciaPcts = meses.map(([m])=> byMonthEnv[m] ? byMonthEnv[m].eficacia : 0);
+  const avg = eficaciaPcts.length ? eficaciaPcts.reduce((a,b)=>a+b,0)/eficaciaPcts.length : 0;
+  const maxV = eficaciaPcts.length ? Math.max(...eficaciaPcts) : 0;
+  const minV = eficaciaPcts.length ? Math.min(...eficaciaPcts) : 0;
+  const best = meses[eficaciaPcts.indexOf(maxV)]?.[0];
+  const worst = meses[eficaciaPcts.indexOf(minV)]?.[0];
+
+  kc('kpiMCum', `
+    <div class="kpi-card"><div class="kpi-lbl">Meses con Datos</div><div class="kpi-val">${meses.length}</div><div class="kpi-sub">De 12 meses</div></div>
+    <div class="kpi-card ${getColorClass(avg, [95,85,75], true)}"><div class="kpi-lbl">Eficacia Promedio</div><div class="kpi-val">${avg.toFixed(1)}%</div><div class="kpi-sub">Media del periodo</div></div>
+    <div class="kpi-card g"><div class="kpi-lbl">Mejor Mes</div><div class="kpi-val">${best?MESES[best]:'—'}</div><div class="kpi-sub">${maxV.toFixed(1)}%</div></div>
+    <div class="kpi-card r"><div class="kpi-lbl">Peor Mes</div><div class="kpi-val">${worst?MESES[worst]:'—'}</div><div class="kpi-sub">${minV.toFixed(1)}%</div></div>
+  `);
+
+  const labels = meses.map(([m])=>MESES[m]);
+  makeBar('chM-pvso', labels, [
+    { label:'Ordenado', data:meses.map(([,v])=>v.orden), backgroundColor:'rgba(30,144,255,.5)', borderRadius:4 },
+    { label:'Producido', data:meses.map(([,v])=>v.prod), backgroundColor:'rgba(0,208,132,.7)', borderRadius:4 }
+  ]);
+
+  makeLine('chM-cump', labels, [
+    { label:'Eficacia %', data:eficaciaPcts, borderColor:'#1e90ff', backgroundColor:'rgba(30,144,255,.1)', fill:true, pointBackgroundColor:'#1e90ff', pointRadius:5 },
+    { label:'Meta 95%', data:labels.map(()=>95), borderColor:'#ff3b5c', borderDash:[6,4], pointRadius:0, fill:false }
+  ], { scales:{...baseOpts.scales, y:{...baseOpts.scales.y, max:120, ticks:{callback:v=>v+'%',color:'#7a9abf'}}} });
+
+  const thead = document.getElementById('thMCum');
+  const tbody = document.getElementById('tbMCum');
+  if (thead && tbody) {
+    thead.innerHTML = '<tr><th>Mes</th><th>Ordenes</th><th>Ordenado</th><th>Producido</th><th>Entregado</th><th>Sobreproduccion</th><th>Eficacia% (envasadoras)</th><th>Eficiencia%</th></tr>';
+    tbody.innerHTML = '';
+    meses.forEach(([m, v]) => {
+      const sobre = Math.max(0, v.prod - v.orden);
+      const eficaciaEnv = byMonthEnv[m] ? byMonthEnv[m].eficacia : 0;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${MESES[m]}</td><td style="text-align:right">${v.rows}</td><td style="text-align:right">${fmtInt(v.orden)}</td><td style="text-align:right">${fmtInt(v.prod)}</td><td style="text-align:right">${fmtInt(v.bod)}</td><td style="text-align:right">${fmtInt(sobre)}</td><td>${badge(eficaciaEnv)} ${progBar(eficaciaEnv)}</td><td>${badge(v.eficiencia)}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+}
+
+function renderMensualEfi() {
+  const year = parseInt(document.getElementById('fME-year')?.value);
+  if (!year) return;
+  const planta = document.getElementById('fME-planta')?.value || '';
+  let data = [];
+  if (planta === '1001' || planta === '') data = data.concat(prodData1001);
+  if (planta === '1002' || planta === '') data = data.concat(prodData1002);
+  data = data.filter(r => r.__year === year);
+
+  const byMonth = groupByMonth(data);
+  const meses = Object.entries(byMonth).filter(([,v])=>v.rows>0);
+  const efiPcts = meses.map(([,v])=>v.eficiencia);
+  const avg = efiPcts.length ? efiPcts.reduce((a,b)=>a+b,0)/efiPcts.length : 0;
+  const maxV = efiPcts.length ? Math.max(...efiPcts) : 0;
+  const minV = efiPcts.length ? Math.min(...efiPcts) : 0;
+  const best = meses[efiPcts.indexOf(maxV)]?.[0];
+  const worst = meses[efiPcts.indexOf(minV)]?.[0];
+  const despAcum = meses.reduce((s,[,v])=>s+v.tira+v.lab+v.pp+v.aboll, 0);
+
+  kc('kpiMEfi', `
+    <div class="kpi-card ${getColorClass(avg, [90,75,60], true)}"><div class="kpi-lbl">Eficiencia Promedio</div><div class="kpi-val">${avg.toFixed(1)}%</div><div class="kpi-sub">Media del periodo</div></div>
+    <div class="kpi-card"><div class="kpi-lbl">Mejor Mes</div><div class="kpi-val">${best?MESES[best]:'—'}</div><div class="kpi-sub">${maxV.toFixed(1)}%</div></div>
+    <div class="kpi-card r"><div class="kpi-lbl">Peor Mes</div><div class="kpi-val">${worst?MESES[worst]:'—'}</div><div class="kpi-sub">${minV.toFixed(1)}%</div></div>
+    <div class="kpi-card o"><div class="kpi-lbl">Desperdicio Acum.</div><div class="kpi-val">${fmtInt(despAcum)}</div><div class="kpi-sub">Total del periodo</div></div>
+  `);
+
+  const labels = meses.map(([m])=>MESES[m]);
+  makeLine('chM-efiline', labels, [
+    { label:'Eficiencia %', data:efiPcts, borderColor:'#00d084', backgroundColor:'rgba(0,208,132,.1)', fill:true, pointRadius:5 },
+    { label:'Meta 95%', data:labels.map(()=>95), borderColor:'#ff3b5c', borderDash:[6,4], pointRadius:0, fill:false }
+  ], { scales:{...baseOpts.scales, y:{...baseOpts.scales.y, max:100, ticks:{callback:v=>v+'%',color:'#7a9abf'}}} });
+
+  makeBar('chM-waste', labels, [
+    { label:'Tira Papel', data:meses.map(([,v])=>v.tira), backgroundColor:'rgba(30,144,255,.8)', stack:'desp' },
+    { label:'Muestra Lab', data:meses.map(([,v])=>v.lab), backgroundColor:'rgba(0,208,132,.8)', stack:'desp' },
+    { label:'Pruebas PP', data:meses.map(([,v])=>v.pp), backgroundColor:'rgba(168,85,247,.8)', stack:'desp' },
+    { label:'Abolladas', data:meses.map(([,v])=>v.aboll), backgroundColor:'rgba(255,59,92,.8)', stack:'desp' }
+  ]);
+
+  const thead = document.getElementById('thMEfi');
+  const tbody = document.getElementById('tbMEfi');
+  if (thead && tbody) {
+    thead.innerHTML = '<tr><th>Mes</th><th>Producido</th><th>T.Real</th><th>T.Teorico</th><th>Eficiencia%</th><th>Tira</th><th>Lab</th><th>PP</th><th>Aboll</th><th>Total Desp</th></tr>';
+    tbody.innerHTML = '';
+    meses.forEach(([m, v]) => {
+      const desp = v.tira+v.lab+v.pp+v.aboll;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${MESES[m]}</td><td style="text-align:right">${fmtInt(v.prod)}</td><td style="text-align:right">${fmt(v.tReal,1)}</td><td style="text-align:right">${fmt(v.tTeo,1)}</td><td>${badge(v.eficiencia)} ${progBar(v.eficiencia)}</td><td style="text-align:right">${fmtInt(v.tira)}</td><td style="text-align:right">${fmtInt(v.lab)}</td><td style="text-align:right">${fmtInt(v.pp)}</td><td style="text-align:right">${fmtInt(v.aboll)}</td><td style="text-align:right">${fmtInt(desp)}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+}
+
+function renderParetos() {
+  const all = prodData1001.concat(prodData1002);
+  if (all.length === 0) return;
+  const mesFilter = parseInt(document.getElementById('fMP-mes')?.value || 0);
+  const topN = parseInt(document.getElementById('fMP-top')?.value || 10);
+  const plantaFilter = document.getElementById('fMP-planta')?.value || '';
+  let data = all;
+  if (mesFilter) data = data.filter(r => r.__month === mesFilter);
+  if (plantaFilter) data = data.filter(r => r.__planta === plantaFilter);
+
+  const byProd = {}; const byWaste = {}; const byIncum = {}; const byEnv = {};
+  data.forEach(r => {
+    const k = (r[COLS.texto]||r[COLS.mat]||'Sin nombre').substring(0,30);
+    byProd[k] = (byProd[k]||0) + n(r[COLS.ctdProd]);
+    byWaste[k] = (byWaste[k]||0) + n(r[COLS.tira]) + n(r[COLS.lab]) + n(r[COLS.pp]) + n(r[COLS.aboll]);
+    byIncum[k] = (byIncum[k]||0) + Math.max(0, n(r[COLS.ctdOrden]) - n(r[COLS.ctdProd]));
+    if (r.__resTipo === 'envasadora') {
+      const ke = r.__resLabel;
+      byEnv[ke] = (byEnv[ke]||0) + n(r[COLS.ctdProd]);
+    }
+  });
+
+  let s = Object.entries(byProd).sort((a,b)=>b[1]-a[1]).slice(0,topN);
+  makePareto('chP-prod', s.map(x=>x[0]), s.map(x=>x[1]), '#1e90ff');
+  s = Object.entries(byWaste).sort((a,b)=>b[1]-a[1]).slice(0,topN);
+  makePareto('chP-waste', s.map(x=>x[0]), s.map(x=>x[1]), '#ff9500');
+  s = Object.entries(byIncum).sort((a,b)=>b[1]-a[1]).filter(x=>x[1]>0).slice(0,topN);
+  makePareto('chP-incum', s.map(x=>x[0]), s.map(x=>x[1]), '#ff3b5c');
+  s = Object.entries(byEnv).sort((a,b)=>b[1]-a[1]).slice(0,topN);
+  makePareto('chP-env', s.map(x=>x[0]), s.map(x=>x[1]), '#a855f7');
+
+  const all2 = Object.entries(byProd).sort((a,b)=>b[1]-a[1]).slice(0,topN);
+  const total = all2.reduce((s,[,v])=>s+v, 0);
+  const thead = document.getElementById('thMPar');
+  const tbody = document.getElementById('tbMPar');
+  if (thead && tbody) {
+    thead.innerHTML = '<tr><th>#</th><th>Producto</th><th>Producido</th><th>% del Total</th><th>% Acumulado</th><th>Zona</th></tr>';
+    tbody.innerHTML = '';
+    let cumPct = 0;
+    all2.forEach(([k,v], i) => {
+      const pctVal = total > 0 ? v/total*100 : 0; cumPct += pctVal;
+      const zona = cumPct <= 80 ? `<span class="badge badge-green">Zona A</span>` : cumPct <= 95 ? `<span class="badge badge-orange">Zona B</span>` : `<span class="badge badge-red">Zona C</span>`;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${i+1}</td><td>${k}</td><td style="text-align:right">${fmtInt(v)}</td><td style="text-align:right">${pctVal.toFixed(1)}%</td><td style="text-align:right">${progBar(cumPct)} ${cumPct.toFixed(1)}%</td><td>${zona}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+}
+
+// ================================================================
+// RENDER PARADAS
+// ================================================================
+function renderParadas(p) {
+  // refresh equipo filter options based on selected source (1001 only)
+  if (p === '1001') {
+    populateParadasFilters('1001');
+    const fuente = document.getElementById('f1001p-fuente')?.value || 'env';
+    const note = document.getElementById('note1001p-eq');
+    if (note) note.style.display = (fuente === 'eq') ? '' : 'none';
+  }
+
+  let data = getParadasSource(p);
+  if (!data.length) {
+    kc(`kpiPar${p}`, `<div class="empty"><i class="fas fa-info-circle"></i>No hay datos de paradas disponibles para esta seleccion.</div>`);
+    ['pcau','fallas-eq','freq-eq','fallas-prod'].forEach(s => destroyChart(`ch${p}-${s}`));
+    kc(`thPar${p}`, ''); kc(`tbPar${p}`, ''); kc(`cntPar${p}`, '<span class="badge badge-blue">0</span>');
+    return;
+  }
+
+  data = filterByDate(data, `f${p}p-from`, `f${p}p-to`);
+
+  const equipoFilter = document.getElementById(`f${p}p-equipo`)?.value;
+  if (equipoFilter) data = data.filter(r => r.__equipo === equipoFilter);
+
+  // ---- KPIs ----
+  const total = data.length;
+  const totalMin = data.reduce((s,r) => s + r.__dur, 0);
+  const avgMin = total > 0 ? totalMin / total : 0;
+
+  const byEqTime = {};
+  data.forEach(r => { const k = r.__equipo || 'Sin equipo'; byEqTime[k] = (byEqTime[k]||0) + r.__dur; });
+  const maxEq = Object.entries(byEqTime).sort((a,b) => b[1] - a[1])[0];
+  const maxEqName = maxEq ? maxEq[0] : 'N/A';
+  const maxEqTime = maxEq ? maxEq[1] : 0;
+
+  kc(`kpiPar${p}`, `
+    <div class="kpi-card r"><div class="kpi-lbl">Numero Total de Fallas</div><div class="kpi-val">${fmtInt(total)}</div><div class="kpi-sub">Eventos registrados</div></div>
+    <div class="kpi-card o"><div class="kpi-lbl">Equipo Mayor Tiempo de Falla</div><div class="kpi-val" style="font-size:1.2rem">${maxEqName}</div><div class="kpi-sub">${fmtInt(maxEqTime)} min acumulados</div></div>
+    <div class="kpi-card p"><div class="kpi-lbl">Tiempo Medio de Fallo</div><div class="kpi-val">${fmt(avgMin,1)}</div><div class="kpi-sub">Minutos / Parada</div></div>
+    <div class="kpi-card c"><div class="kpi-lbl">Tiempo Total Detenido</div><div class="kpi-val">${fmtInt(totalMin)}</div><div class="kpi-sub">Minutos acumulados</div></div>
+  `);
+
+  // ---- Pareto de causas del equipo seleccionado (o global si no hay filtro) ----
+  const causaData = equipoFilter ? data : data.filter(r => r.__equipo === maxEqName);
+  const byCausa = {};
+  causaData.forEach(r => {
+    const k = (r.__causa || 'Sin descripcion').substring(0,40);
+    byCausa[k] = (byCausa[k]||0) + (r.__dur || 1);
+  });
+  const causaSorted = Object.entries(byCausa).sort((a,b)=>b[1]-a[1]).slice(0,15);
+  makePareto(`ch${p}-pcau`, causaSorted.map(x=>x[0]), causaSorted.map(x=>x[1]), '#a855f7');
+
+  // ---- Tiempo acumulado de falla por equipo ----
+  const eqTimeSorted = Object.entries(byEqTime).sort((a,b) => b[1] - a[1]).slice(0,15);
+  makeBar(`ch${p}-fallas-eq`, eqTimeSorted.map(x=>x[0]), [
+    { label:'Minutos', data:eqTimeSorted.map(x=>x[1]), backgroundColor:'#ff3b5c', borderRadius:4 }
+  ], { plugins:{legend:{display:false}} });
+
+  // ---- Frecuencia de equipos segun filtro rango de dias ----
+  const rangoSel = parseInt(document.getElementById(`f${p}p-rango`)?.value || 0);
+  let rangoData = data;
+  if (rangoSel > 0) {
+    const allDates = data.map(r=>r.__date).filter(Boolean);
+    if (allDates.length) {
+      const maxDate = new Date(Math.max(...allDates.map(d=>d.getTime())));
+      const minAllowed = new Date(maxDate.getTime() - rangoSel*86400000);
+      rangoData = data.filter(r => r.__date && r.__date >= minAllowed);
+    }
+  }
+  const byEqFreq = {};
+  rangoData.forEach(r => { const k = r.__equipo || 'Sin equipo'; byEqFreq[k] = (byEqFreq[k]||0) + 1; });
+  const eqFreqSorted = Object.entries(byEqFreq).sort((a,b)=>b[1]-a[1]).slice(0,15);
+  makeBar(`ch${p}-freq-eq`, eqFreqSorted.map(x=>x[0]), [
+    { label:'Frecuencia', data:eqFreqSorted.map(x=>x[1]), backgroundColor:'#1e90ff', borderRadius:4 }
+  ], { plugins:{legend:{display:false}} });
+
+  // ---- Frecuencia de producto segun paradas ----
+  const byProdFreq = {};
+  data.forEach(r => {
+    const k = r.__producto || 'Sin producto';
+    if (k === 'Sin producto' && p !== '1001') return; // 1002 equipos data has no producto
+    byProdFreq[k] = (byProdFreq[k]||0) + 1;
+  });
+  const prodFreqSorted = Object.entries(byProdFreq).sort((a,b) => b[1] - a[1]).slice(0,15);
+  if (prodFreqSorted.length) {
+    makeBar(`ch${p}-fallas-prod`, prodFreqSorted.map(x=>x[0].substring(0,25)), [
+      { label:'Frecuencia', data:prodFreqSorted.map(x=>x[1]), backgroundColor:'#ff9500', borderRadius:4 }
+    ], { plugins:{legend:{display:false}} });
+  } else {
+    destroyChart(`ch${p}-fallas-prod`);
+  }
+
+  // ---- Tabla detalle ----
+  const isEnv = p === '1001' && (document.getElementById('f1001p-fuente')?.value === 'env');
+  let cols, heads;
+  if (isEnv) {
+    cols = ['N° Orden','Producto','Lote','Envasadora','Desde','Hasta','Duración (min)','Descripción'];
+    heads = ['N° Orden','Producto','Lote','Envasadora','Desde','Hasta','Min','Descripcion'];
+  } else {
+    cols = ['ID','FECHA APERTURA','ÁREA','EQUIPO','EFECTO','ORIGEN','SEVERIDAD','ESTADO','TÍTULO'];
+    heads = ['ID','Fecha Apertura','Area','Equipo','Efecto','Origen','Severidad','Estado','Titulo'];
+  }
+  const thead = document.getElementById(`thPar${p}`);
+  const tbody = document.getElementById(`tbPar${p}`);
+  if (thead && tbody) {
+    thead.innerHTML = '<tr>' + heads.map(h=>`<th>${h}</th>`).join('') + '</tr>';
+    tbody.innerHTML = '';
+    data.slice(0,200).forEach(row => {
+      const tr = document.createElement('tr');
+      cols.forEach(c => { const td = document.createElement('td'); td.textContent = String(row[c]??'').substring(0,45); tr.appendChild(td); });
+      tbody.appendChild(tr);
+    });
+  }
+  kc(`cntPar${p}`, `<span class="badge badge-blue">${data.length}</span>`);
+}
+
+// ================================================================
+// EXPORTS
+// ================================================================
+const exportData = {
+  prod1001: () => prodData1001,
+  prod1002: () => prodData1002,
+  paradas1001: () => getParadasSource('1001'),
+  paradas1002: () => getParadasSource('1002'),
+  env1001: () => prodData1001.filter(r=>r.__resTipo==='envasadora'),
+  env1002: () => prodData1002.filter(r=>r.__resTipo==='envasadora'),
+  mensualCum: () => prodData1001.concat(prodData1002),
+  mensualEfi: () => prodData1001.concat(prodData1002),
+  mensualPar: () => prodData1001.concat(prodData1002),
+  ventas1001: () => buildVentasExport('1001'),
+  ventas1002: () => buildVentasExport('1002'),
+};
+
+function buildVentasExport(planta) {
+  const avgVentas = avgWeeklyVentasBySku(planta);
+  const avgDemanda = avgWeeklyDemandaBySku(planta);
+  const skus = new Set([...Object.keys(avgVentas).map(Number), ...Object.keys(avgDemanda).map(Number)]);
+  return [...skus].map(sku => {
+    const venta = avgVentas[sku]||0, demanda = avgDemanda[sku]||0;
+    const mape = venta>0 ? Math.abs(demanda-venta)/venta*100 : null;
+    return {
+      SKU: sku,
+      Producto: skuTexto(planta, sku),
+      'Venta Sem. Prom.': Math.round(venta),
+      'Demanda Sem. Prom.': Math.round(demanda),
+      'MAPE %': mape!==null ? mape.toFixed(1) : '',
+      'Asertividad %': mape!==null ? Math.max(0,100-mape).toFixed(1) : ''
+    };
+  });
+}
+
+function exportXLS(key) {
+  const data = exportData[key] ? exportData[key]() : [];
+  if (!data.length) { alert('No hay datos para exportar'); return; }
+  const clean = data.map(r => { const o={}; Object.keys(r).filter(k=>!k.startsWith('__')).forEach(k=>o[k]=r[k]); return o; });
+  const ws = XLSX.utils.json_to_sheet(clean);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Datos');
+  XLSX.writeFile(wb, `MASTERKPI_${key}_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+function exportPDF(sectionId) {
+  const w = window.open('', '_blank');
+  const section = document.getElementById(sectionId);
+  if (!section) return;
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Arial;margin:20px}table{border-collapse:collapse;width:100%;font-size:11px}th,td{border:1px solid #ccc;padding:5px 8px}th{background:#1e3a5f;color:white}@media print{body{margin:10px}}</style></head><body><h2>Dashboard KPI Produccion — MASTERKPI v3</h2><p>Exportado: ${new Date().toLocaleString('es-EC')}</p>${section.innerHTML}</body></html>`);
+  w.document.close();
+  setTimeout(() => { w.print(); }, 600);
+}
+
+// ================================================================
+// VENTAS VS DEMANDA
+// ================================================================
+function buildMaterialSets() {
+  materialSet1001 = new Set(prodData1001.map(r => parseInt(r[COLS.mat])).filter(v=>!isNaN(v)));
+  materialSet1002 = new Set(prodData1002.map(r => parseInt(r[COLS.mat])).filter(v=>!isNaN(v)));
+}
+
+// Numero de semanas completas (lun-dom) cubiertas por VENTAS
+function ventasWeekCount() {
+  if (!ventasData.length) return 0;
+  const dates = ventasData.map(r=>r.__date).filter(Boolean);
+  if (!dates.length) return 0;
+  const minD = new Date(Math.min(...dates.map(d=>d.getTime())));
+  const maxD = new Date(Math.max(...dates.map(d=>d.getTime())));
+  const days = Math.round((maxD - minD) / 86400000) + 1;
+  return Math.max(1, days / 7);
+}
+
+// Promedio semanal de ventas por SKU para una planta dada
+function avgWeeklyVentasBySku(planta) {
+  const matSet = planta === '1001' ? materialSet1001 : materialSet1002;
+  const weeks = ventasWeekCount();
+  const totals = {};
+  ventasData.forEach(r => {
+    const sku = parseInt(r.__sku);
+    if (!matSet.has(sku)) return;
+    totals[sku] = (totals[sku]||0) + r.__cant;
+  });
+  const out = {};
+  Object.entries(totals).forEach(([sku,total]) => { out[sku] = total / weeks; });
+  return out;
+}
+
+// Promedio semanal de demanda (pronostico) por SKU, sumando todos los canales
+function avgWeeklyDemandaBySku(planta) {
+  const data = planta === '1001' ? demanda1001 : demanda1002;
+  if (!data.length) return {};
+  const headers = Object.keys(data[0]);
+  const weekCols = headers.filter(h => /^\d{2}\/\d{2}\/\d{4} - \d{2}\/\d{2}\/\d{4}$/.test(h));
+  const skuKey = planta === '1001' ? 'SAP' : 'CÓDIGO';
+  const totals = {};
+  data.forEach(r => {
+    const sku = parseInt(r[skuKey]);
+    if (isNaN(sku)) return;
+    let sum = 0;
+    weekCols.forEach(wc => sum += n(r[wc]));
+    totals[sku] = (totals[sku]||0) + sum;
+  });
+  const out = {};
+  Object.entries(totals).forEach(([sku,total]) => { out[sku] = total / weekCols.length; });
+  return out;
+}
+
+function skuTexto(planta, sku) {
+  const data = planta === '1001' ? prodData1001 : prodData1002;
+  const found = data.find(r => parseInt(r[COLS.mat]) === sku);
+  return found ? found[COLS.texto] : String(sku);
+}
+
+function renderVentas(planta) {
+  if (!ventasData.length) {
+    kc(`kpiV${planta}`, `<div class="empty"><i class="fas fa-info-circle"></i>No se encontro la hoja VENTAS en el archivo.</div>`);
+    return;
+  }
+  const avgVentas = avgWeeklyVentasBySku(planta);
+  const avgDemanda = avgWeeklyDemandaBySku(planta);
+
+  // Union de SKUs presentes en ventas o demanda
+  const skus = new Set([...Object.keys(avgVentas).map(Number), ...Object.keys(avgDemanda).map(Number)]);
+
+  const rows = [...skus].map(sku => {
+    const venta = avgVentas[sku] || 0;
+    const demanda = avgDemanda[sku] || 0;
+    let mape = null;
+    if (venta > 0) mape = Math.abs(demanda - venta) / venta * 100;
+    const asertividad = mape !== null ? Math.max(0, 100 - mape) : null;
+    return { sku, texto: skuTexto(planta, sku), venta, demanda, mape, asertividad };
+  }).filter(r => r.venta > 0 || r.demanda > 0);
+
+  // SKUs con MAPE extremo (>200%) suelen indicar inconsistencia de unidades/SAP en DEMANDA;
+  // se muestran aparte y no contaminan el promedio general.
+  const MAPE_REVISAR = 200;
+  const rowsNormal = rows.filter(r => r.mape === null || r.mape <= MAPE_REVISAR);
+  const rowsRevisar = rows.filter(r => r.mape !== null && r.mape > MAPE_REVISAR);
+
+  // KPIs globales (sobre rowsNormal)
+  const withMape = rowsNormal.filter(r => r.mape !== null);
+  const avgMape = withMape.length ? withMape.reduce((s,r)=>s+r.mape,0)/withMape.length : 0;
+  const avgAsert = withMape.length ? withMape.reduce((s,r)=>s+r.asertividad,0)/withMape.length : 0;
+  const sinPronostico = rowsNormal.filter(r => r.demanda === 0 && r.venta > 0).length;
+  const sinVenta = rowsNormal.filter(r => r.venta === 0 && r.demanda > 0).length;
+
+  kc(`kpiV${planta}`, `
+    <div class="kpi-card"><div class="kpi-lbl">Productos Comparados</div><div class="kpi-val">${withMape.length}</div><div class="kpi-sub">Con venta y/o demanda</div></div>
+    <div class="kpi-card r"><div class="kpi-lbl">MAPE Promedio</div><div class="kpi-val">${avgMape.toFixed(1)}%</div><div class="kpi-sub">|Demanda - Venta| / Venta</div></div>
+    <div class="kpi-card ${getColorClass(avgAsert,[90,75,60],true)}"><div class="kpi-lbl">Asertividad Promedio</div><div class="kpi-val">${avgAsert.toFixed(1)}%</div><div class="kpi-sub">100% - MAPE</div></div>
+    <div class="kpi-card o"><div class="kpi-lbl">Sin Pronostico en Demanda</div><div class="kpi-val">${sinPronostico}</div><div class="kpi-sub">Se vende pero no esta en DEMANDA</div></div>
+    <div class="kpi-card p"><div class="kpi-lbl">Sin Venta Reciente</div><div class="kpi-val">${sinVenta}</div><div class="kpi-sub">Pronosticado pero sin venta en el periodo</div></div>
+    ${rowsRevisar.length ? `<div class="kpi-card bad-1"><div class="kpi-lbl">A Revisar (MAPE &gt; ${MAPE_REVISAR}%)</div><div class="kpi-val">${rowsRevisar.length}</div><div class="kpi-sub">Posible error de unidades/SAP en DEMANDA</div></div>` : ''}
+  `);
+
+  const rows2 = rowsNormal;
+
+  const topN = parseInt(document.getElementById(`fV${planta}-top`)?.value || 15);
+  const sortBy = document.getElementById(`fV${planta}-sort`)?.value || 'mape';
+
+  let sorted = [...rows2];
+  if (sortBy === 'mape') {
+    sorted = sorted.filter(r=>r.mape!==null).sort((a,b)=>b.mape-a.mape);
+  } else {
+    sorted = sorted.sort((a,b)=>b.venta-a.venta);
+  }
+  const top = sorted.slice(0, topN);
+
+  // Chart: Venta vs Demanda promedio semanal
+  makeBar(`chV${planta}-vsd`, top.map(r=>r.texto.substring(0,28)), [
+    { label:'Venta Sem. Prom.', data:top.map(r=>r.venta), backgroundColor:'#1e90ff', borderRadius:4 },
+    { label:'Demanda Sem. Prom.', data:top.map(r=>r.demanda), backgroundColor:'#00d084', borderRadius:4 }
+  ]);
+
+  // Chart: Asertividad por producto
+  const withAsert = top.filter(r=>r.asertividad!==null);
+  makeBar(`chV${planta}-asert`, withAsert.map(r=>r.texto.substring(0,28)), [
+    { label:'Asertividad %', data:withAsert.map(r=>r.asertividad), backgroundColor:withAsert.map(r=>effColor(r.asertividad)), borderRadius:4 }
+  ], { plugins:{legend:{display:false}}, scales:{...baseOpts.scales, y:{...baseOpts.scales.y, max:100, ticks:{callback:v=>v+'%',color:'#7a9abf'}}} });
+
+  // Tabla: productos donde mejorar el pronostico (peor asertividad primero)
+  const tableRows = rows2.filter(r=>r.mape!==null).sort((a,b)=>b.mape-a.mape).slice(0, topN);
+  const thead = document.getElementById(`thV${planta}`);
+  const tbody = document.getElementById(`tbV${planta}`);
+  if (thead && tbody) {
+    thead.innerHTML = '<tr><th>SKU</th><th>Producto</th><th>Venta Sem. Prom.</th><th>Demanda Sem. Prom.</th><th>Diferencia</th><th>MAPE</th><th>Asertividad</th></tr>';
+    tbody.innerHTML = '';
+    tableRows.forEach(r => {
+      const diff = r.demanda - r.venta;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${r.sku}</td><td>${r.texto.substring(0,40)}</td><td style="text-align:right">${fmtInt(r.venta)}</td><td style="text-align:right">${fmtInt(r.demanda)}</td><td style="text-align:right">${diff>=0?'+':''}${fmtInt(diff)}</td><td style="text-align:right">${r.mape.toFixed(1)}%</td><td>${badge(r.asertividad)}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+  kc(`cntV${planta}`, `<span class="badge badge-blue">${tableRows.length}</span>`);
+
+  // Tabla: SKUs a revisar (MAPE extremo, posible inconsistencia de unidades/SAP)
+  const revisarCard = document.getElementById(`revisarV${planta}`);
+  if (revisarCard) {
+    if (rowsRevisar.length) {
+      revisarCard.classList.remove('hidden');
+      const thead2 = document.getElementById(`thRevisarV${planta}`);
+      const tbody2 = document.getElementById(`tbRevisarV${planta}`);
+      thead2.innerHTML = '<tr><th>SKU</th><th>Producto</th><th>Venta Sem. Prom.</th><th>Demanda Sem. Prom.</th><th>Ratio Dem/Venta</th><th>MAPE</th></tr>';
+      tbody2.innerHTML = '';
+      rowsRevisar.sort((a,b)=>b.mape-a.mape).forEach(r => {
+        const ratio = r.venta>0 ? (r.demanda/r.venta) : 0;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${r.sku}</td><td>${r.texto.substring(0,40)}</td><td style="text-align:right">${fmtInt(r.venta)}</td><td style="text-align:right">${fmtInt(r.demanda)}</td><td style="text-align:right">${ratio.toFixed(1)}x</td><td style="text-align:right">${r.mape.toFixed(0)}%</td>`;
+        tbody2.appendChild(tr);
+      });
+    } else {
+      revisarCard.classList.add('hidden');
+    }
+  }
+}
+
+
+// ================================================================
+// RESUMEN GENERAL
+// ================================================================
+function renderResumen() {
+  const year = parseInt(document.getElementById('fR-year')?.value);
+  if (!year) { populateYearSelectors(); }
+  const yr = parseInt(document.getElementById('fR-year')?.value) || new Date().getFullYear();
+
+  ['1001','1002'].forEach(p => {
+    const data = plantData(p).filter(r => r.__year === yr);
+    if (!data.length) { kc(`kpiR${p}`, `<div class="empty"><i class="fas fa-info-circle"></i>Sin datos para ${yr}.</div>`); return; }
+    const ctdOrden = data.reduce((s,r)=>s+n(r[COLS.ctdOrden]),0);
+    const ctdProd = data.reduce((s,r)=>s+n(r[COLS.ctdProd]),0);
+    const tReal = data.reduce((s,r)=>s+n(r[COLS.tReal]),0);
+    const tTeo = data.reduce((s,r)=>s+n(r[COLS.tTeo]),0);
+    const dataEnv = data.filter(r => r.__resTipo === 'envasadora');
+    const ctdOrdenEnv = dataEnv.reduce((s,r)=>s+n(r[COLS.ctdOrden]),0);
+    const ctdProdEnv = dataEnv.reduce((s,r)=>s+n(r[COLS.ctdProd]),0);
+    const eficacia = pct(ctdProdEnv, ctdOrdenEnv);
+    const eficiencia = tReal>0 ? adjEff(pct(tTeo,tReal)) : 0;
+    const paradas = getParadasSource(p);
+    const byEq = {};
+    paradas.forEach(r => { const k=r.__equipo||'Sin equipo'; byEq[k]=(byEq[k]||0)+r.__dur; });
+    const topEq = Object.entries(byEq).sort((a,b)=>b[1]-a[1])[0];
+
+    kc(`kpiR${p}`, `
+      <div class="kpi-card ${getColorClass(eficacia,[95,85,75],true)}"><div class="kpi-lbl">Eficacia ${yr}</div><div class="kpi-val">${eficacia.toFixed(1)}%</div><div class="kpi-sub">Producido/Ordenado (envasadoras)</div></div>
+      <div class="kpi-card ${getColorClass(eficiencia,[90,75,60],true)}"><div class="kpi-lbl">Eficiencia ${yr}</div><div class="kpi-val">${eficiencia.toFixed(1)}%</div><div class="kpi-sub">T.Teorico/T.Real</div></div>
+      <div class="kpi-card r"><div class="kpi-lbl">Total Paradas</div><div class="kpi-val">${fmtInt(paradas.length)}</div><div class="kpi-sub">Eventos registrados</div></div>
+      <div class="kpi-card o"><div class="kpi-lbl">Equipo con Mas Paradas</div><div class="kpi-val" style="font-size:1.1rem">${topEq?topEq[0]:'—'}</div><div class="kpi-sub">${topEq?fmtInt(topEq[1])+' min':''}</div></div>
+    `);
+  });
+
+  // Paradas por equipo (top) para cada planta
+  ['1001','1002'].forEach(p => {
+    const paradas = getParadasSource(p);
+    const byEq = {};
+    paradas.forEach(r => { const k=r.__equipo||'Sin equipo'; byEq[k]=(byEq[k]||0)+r.__dur; });
+    const sorted = Object.entries(byEq).sort((a,b)=>b[1]-a[1]).slice(0,10);
+    makeBar(`chR-paradas${p}`, sorted.map(x=>x[0]), [
+      { label:'Minutos', data:sorted.map(x=>x[1]), backgroundColor: p==='1001'?'#1e90ff':'#00d084', borderRadius:4 }
+    ], { plugins:{legend:{display:false}} });
+  });
+
+  // Asertividad de ventas
+  if (ventasData.length) {
+    const sections = ['1001','1002'].map(p => {
+      const avgVentas = avgWeeklyVentasBySku(p);
+      const avgDemanda = avgWeeklyDemandaBySku(p);
+      const skus = new Set([...Object.keys(avgVentas).map(Number), ...Object.keys(avgDemanda).map(Number)]);
+      const rows = [...skus].map(sku => {
+        const venta = avgVentas[sku]||0, demanda = avgDemanda[sku]||0;
+        const mape = venta>0 ? Math.abs(demanda-venta)/venta*100 : null;
+        return mape;
+      }).filter(v=>v!==null);
+      const avgAsert = rows.length ? rows.reduce((s,m)=>s+Math.max(0,100-m),0)/rows.length : 0;
+      return { p, avgAsert, n: rows.length };
+    });
+    kc('kpiRVentas', sections.map(s => `
+      <div class="kpi-card ${getColorClass(s.avgAsert,[90,75,60],true)}"><div class="kpi-lbl">Asertividad Planta ${s.p}</div><div class="kpi-val">${s.avgAsert.toFixed(1)}%</div><div class="kpi-sub">${s.n} productos comparados</div></div>
+    `).join(''));
+  } else {
+    kc('kpiRVentas', `<div class="empty"><i class="fas fa-info-circle"></i>No se encontro la hoja VENTAS.</div>`);
+  }
+}
+
+</script>
 </body>
 </html>
